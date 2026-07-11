@@ -61,8 +61,8 @@ class CategoryResource extends Resource
                 Tables\Columns\Layout\Stack::make([
                     Tables\Columns\IconColumn::make('icon')
                         ->alignCenter()
-                        ->icon(fn (string $state): string => $state)
-                        ->color(fn ($record) => Color::hex($record->color))
+                        ->icon(fn(string $state): string => $state)
+                        ->color(fn($record) => Color::hex($record->color))
                         ->size(Tables\Columns\IconColumn\IconColumnSize::TwoExtraLarge),
                     Tables\Columns\TextColumn::make('name')
                         ->label('Nome')
@@ -78,9 +78,7 @@ class CategoryResource extends Resource
                 'xl' => 4,
             ])
             ->paginated([
-                12,
-                24,
-                36,
+                100,
                 'all',
             ])
             ->filters([

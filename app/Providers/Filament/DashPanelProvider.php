@@ -6,6 +6,7 @@ use App\Filament\AvatarProviders\BoringAvatarsProvider;
 use App\Filament\Pages\Auth\EditProfile;
 use App\Filament\Pages\Dashboard;
 use App\Filament\Widgets;
+use Filament\Enums\ThemeMode;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\DisableBladeIconComponents;
 use Filament\Http\Middleware\DispatchServingFilamentEvent;
@@ -35,9 +36,18 @@ class DashPanelProvider extends PanelProvider
             ->profile(page: EditProfile::class, isSimple: false)
             ->sidebarCollapsibleOnDesktop()
             ->databaseNotifications()
+            ->brandName('Finanças')
+            ->font('DM Sans')
             ->colors([
-                'primary' => Color::Purple,
+                'danger' => Color::Rose,
+                'gray' => Color::Slate,
+                'info' => Color::Sky,
+                'primary' => Color::Blue,
+                'success' => Color::Emerald,
+                'warning' => Color::Amber,
             ])
+            ->defaultThemeMode(ThemeMode::Dark)
+            ->viteTheme('resources/css/filament/dash/theme.css')
             ->defaultAvatarProvider(BoringAvatarsProvider::class)
             ->discoverResources(in: app_path('Filament/Resources'), for: 'App\\Filament\\Resources')
             ->discoverPages(in: app_path('Filament/Pages'), for: 'App\\Filament\\Pages')
@@ -45,11 +55,13 @@ class DashPanelProvider extends PanelProvider
                 Dashboard::class,
             ])
             ->widgets([
+                Widgets\MonthProjectionWidget::class,
                 Widgets\TransactionsOverview::class,
-                Widgets\InvestmentContributions::class,
                 Widgets\MonthRevenue::class,
                 Widgets\CategoriesChart::class,
+                Widgets\TopCategoriesWidget::class,
                 Widgets\TodayTransactions::class,
+                Widgets\RecentActivityWidget::class,
             ])
             ->middleware([
                 EncryptCookies::class,

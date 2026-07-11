@@ -86,8 +86,10 @@ class TransactionResource extends Resource
                             ->native(false)
                             ->displayFormat('d/m/Y')
                             ->format('Y-m-d')
-                            ->visible(fn (Forms\Get $get): bool => (bool) $get('finished') && $get('transaction_type') === TransactionType::Expense->value)
-                            ->required(fn (Forms\Get $get): bool => (bool) $get('finished') && $get('transaction_type') === TransactionType::Expense->value),
+                            ->helperText('Usada nos totais de receitas e despesas do mês em que o valor foi pago/recebido.')
+                            ->visible(fn (Forms\Get $get): bool => (bool) $get('finished'))
+                            ->required(fn (Forms\Get $get): bool => (bool) $get('finished'))
+                            ->default(fn (Forms\Get $get): ?string => $get('due_date')),
 
                         Forms\Components\Toggle::make('recurrence')
                             ->label('Recorrencia mensal')
@@ -137,12 +139,15 @@ class TransactionResource extends Resource
         $livewire = $table->getLivewire();
 
         return $table
-            ->defaultSort('date', 'asc')
-            ->defaultGroup('date')
-            ->striped()
+            ->defaultSort(
+                fn (Builder $query, string $direction): Builder => $query->orderByRaw(
+                    Transaction::dueDateExpression() . ' ' . ($direction === 'desc' ? 'DESC' : 'ASC')
+                ),
+                'asc',
+            )
+            ->defaultGroup('due_date')
             ->modifyQueryUsing(fn (Builder $query): Builder => $query
-                ->with(['category', 'account'])
-                ->orderBy('date')
+                ->orderByRaw(Transaction::dueDateExpression() . ' ASC')
                 ->orderByRaw("case when transaction_type = 'income' then 0 else 1 end")
                 ->orderBy('created_at'))
             ->columns(
@@ -200,10 +205,10 @@ class TransactionResource extends Resource
                             return $query;
                         }
 
-                        return $query->whereBetween('date', [
+                        return $query->forDuePeriod(
                             $baseDate->copy()->startOfMonth()->toDateString(),
                             $baseDate->copy()->endOfMonth()->toDateString(),
-                        ]);
+                        );
                     })
                     ->indicateUsing(function (array $data): ?string {
                         $monthReference = $data['monthReference'] ?? null;
@@ -243,9 +248,13 @@ class TransactionResource extends Resource
                     ->query(fn (Builder $query) => $query->where('finished', true)),
             ])
             ->groups([
-                Tables\Grouping\Group::make('date')
-                    ->label('Data')
-                    ->date(),
+                Tables\Grouping\Group::make('due_date')
+                    ->label('Vencimento')
+                    ->getTitleFromRecordUsing(fn (Transaction $record): ?string => $record->displayDueDate()?->format('d/m/Y'))
+                    ->getKeyFromRecordUsing(fn (Transaction $record): ?string => $record->displayDueDate()?->toDateString())
+                    ->orderQueryUsing(fn (Builder $query, string $direction): Builder => $query->orderByRaw(
+                        Transaction::dueDateExpression() . ' ' . ($direction === 'desc' ? 'DESC' : 'ASC')
+                    )),
                 Tables\Grouping\Group::make('category_id')
                     ->label('Categoria')
                     ->getTitleFromRecordUsing(fn (Transaction $record): ?string => $record->category?->name),
@@ -254,9 +263,7 @@ class TransactionResource extends Resource
                     ->getTitleFromRecordUsing(fn (Transaction $record): ?string => $record->account?->name),
             ])
             ->paginated([
-                10,
-                25,
-                50,
+                100,
                 'all',
             ])
             ->defaultPaginationPageOption(25)
@@ -288,19 +295,42 @@ class TransactionResource extends Resource
     {
         return [
             Tables\Columns\Layout\Stack::make([
-                Tables\Columns\Layout\Split::make([
-                    Tables\Columns\TextColumn::make('date')
-                        ->label('Data')
-                        ->date('d/m/Y')
-                        ->sortable()
-                        ->badge()
-                        ->color('gray'),
-                    Tables\Columns\TextColumn::make('transaction_type')
-                        ->label('Tipo')
-                        ->badge()
-                        ->iconPosition(IconPosition::After)
-                        ->grow(false),
-                ]),
+                Tables\Columns\Layout\Grid::make([
+                    'lg' => 2,
+                ])
+                    ->schema([
+                        Tables\Columns\TextColumn::make('due_date')
+                            ->label('Vencimento')
+                            ->getStateUsing(fn (Transaction $record) => $record->displayDueDate())
+                            ->date('d/m/Y')
+                            ->sortable(query: fn (Builder $query, string $direction): Builder => $query->orderByRaw(
+                                Transaction::dueDateExpression() . ' ' . ($direction === 'desc' ? 'DESC' : 'ASC')
+                            ))
+                            ->badge(),
+                        Tables\Columns\TextColumn::make('payment_date')
+                            ->label('Pagamento')
+                            ->date('d/m/Y')
+                            ->placeholder('—')
+                            ->sortable()
+                            ->badge()
+                            ->color('gray'),
+                        Tables\Columns\TextColumn::make('transaction_type')
+                            ->label('Tipo')
+                            ->badge()
+                            ->iconPosition(IconPosition::After)
+                            ->alignEnd(),
+
+                        Tables\Columns\TextColumn::make('description')
+                            ->label('Descrição')
+                            ->searchable()
+                            ->size(Tables\Columns\TextColumn\TextColumnSize::Large),
+                        Tables\Columns\TextColumn::make('category.name')
+                            ->label('Categoria')
+                            ->searchable()
+                            ->badge()
+                            ->icon(fn ($record) => $record->category->icon)
+                            ->color(fn ($record) => Color::hex($record->category->color))
+                            ->alignEnd(),
 
                 Tables\Columns\TextColumn::make('description')
                     ->label('Descrição')
@@ -354,17 +384,32 @@ class TransactionResource extends Resource
     {
         return [
             Tables\Columns\ToggleColumn::make('finished')
-                ->label('Pago')
+                ->label('Finalizada')
                 ->alignCenter()
-                ->onColor('success')
-                ->offColor('warning'),
-            Tables\Columns\TextColumn::make('date')
-                ->label('Data')
+                ->updateStateUsing(function (Transaction $record, bool $state): bool {
+                    $record->finished = $state;
+                    $record->payment_date = $state
+                        ? ($record->payment_date ?? now()->toDateString())
+                        : null;
+                    $record->save();
+
+                    return $state;
+                }),
+            Tables\Columns\TextColumn::make('due_date')
+                ->label('Vencimento')
+                ->getStateUsing(fn (Transaction $record) => $record->displayDueDate())
                 ->date('d/m/Y')
                 ->badge()
+                ->sortable(query: fn (Builder $query, string $direction): Builder => $query->orderByRaw(
+                    Transaction::dueDateExpression() . ' ' . ($direction === 'desc' ? 'DESC' : 'ASC')
+                )),
+            Tables\Columns\TextColumn::make('payment_date')
+                ->label('Pagamento')
+                ->date('d/m/Y')
+                ->placeholder('—')
+                ->badge()
                 ->color('gray')
-                ->sortable()
-                ->toggleable(),
+                ->sortable(),
             Tables\Columns\TextColumn::make('description')
                 ->label('Descrição')
                 ->searchable()

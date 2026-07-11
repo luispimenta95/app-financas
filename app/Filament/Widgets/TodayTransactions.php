@@ -13,17 +13,23 @@ use Filament\Widgets\TableWidget as BaseWidget;
 
 class TodayTransactions extends BaseWidget
 {
-    protected static ?string $heading = 'Transações de Hoje';
+    protected static ?string $heading = 'Últimas transações';
 
-    protected int|string|array $columnSpan = 'full';
+    protected static ?int $sort = 5;
+
+    protected int|string|array $columnSpan = [
+        'md' => 2,
+        'xl' => 3,
+    ];
 
     public function table(Table $table): Table
     {
         return $table
             ->query(
-                Transaction::whereDate('created_at', now()->today()->toDateString())
-                    ->orderByDesc('created_at')
-                    ->limit(5)
+                Transaction::query()
+                    ->with(['category', 'account'])
+                    ->latest('created_at')
+                    ->limit(8)
             )
             ->defaultSort('created_at', 'desc')
             ->defaultPaginationPageOption(5)
@@ -33,8 +39,9 @@ class TodayTransactions extends BaseWidget
                 Tables\Columns\ToggleColumn::make('finished')
                     ->label('Finalizada')
                     ->alignCenter(),
-                Tables\Columns\TextColumn::make('date')
-                    ->label('Data')
+                Tables\Columns\TextColumn::make('due_date')
+                    ->label('Vencimento')
+                    ->getStateUsing(fn (Transaction $record) => $record->displayDueDate())
                     ->date('d/m/Y'),
                 Tables\Columns\TextColumn::make('description')
                     ->label('Descrição'),

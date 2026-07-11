@@ -2,6 +2,7 @@
 
 namespace App\Filament\Pages;
 
+use App\Filament\Widgets\MonthProjectionWidget;
 use Closure;
 use Filament\Forms;
 use Filament\Forms\Form;
@@ -10,22 +11,42 @@ use Filament\Pages\Dashboard as BaseDashboard;
 use Filament\Pages\Dashboard\Concerns\HasFiltersForm;
 use Filament\Support\Enums\ActionSize;
 use Filament\Support\Enums\IconSize;
+use Filament\Widgets\WidgetConfiguration;
 use Livewire\Component as Livewire;
 
 class Dashboard extends BaseDashboard
 {
     use HasFiltersForm;
 
-    protected static ?string $title = 'Dashboard';
+    protected static ?string $title = 'Dashboard Financeiro';
+
+    protected static ?string $navigationLabel = 'Dashboard';
 
     protected static ?string $navigationIcon = 'heroicon-m-home';
+
+    /**
+     * @return array<class-string | WidgetConfiguration>
+     */
+    public function getVisibleWidgets(): array
+    {
+        $widgets = parent::getVisibleWidgets();
+
+        if (! MonthProjectionWidget::shouldDisplay($this->filters)) {
+            $widgets = array_values(array_filter(
+                $widgets,
+                fn (string|WidgetConfiguration $widget): bool => $this->normalizeWidgetClass($widget) !== MonthProjectionWidget::class,
+            ));
+        }
+
+        return $widgets;
+    }
 
     public function filtersForm(Form $form): Form
     {
         return $form
             ->schema([
                 Forms\Components\Section::make('Filtros')
-                    ->icon('heroicon-m-adjustments-horizontal')
+                    ->icon('heroicon-m-funnel')
                     ->collapsible()
                     ->collapsed()
                     ->columns(4)
@@ -84,6 +105,9 @@ class Dashboard extends BaseDashboard
 
     public function getColumns(): int|string|array
     {
-        return 3;
+        return [
+            'md' => 2,
+            'xl' => 4,
+        ];
     }
 }

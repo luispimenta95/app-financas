@@ -48,15 +48,15 @@ class AccountResource extends Resource
                     ]),
 
                 Forms\Components\Fieldset::make('Informações Adicionais')
-                    ->hidden(fn (?Account $record): bool => is_null($record))
+                    ->hidden(fn(?Account $record): bool => is_null($record))
                     ->columns(2)
                     ->schema([
                         Forms\Components\Placeholder::make('created_at')
                             ->label('Criado em:')
-                            ->content(fn (Account $record): string => $record->created_at->format('d/m/Y H:i')),
+                            ->content(fn(Account $record): string => $record->created_at->format('d/m/Y H:i')),
                         Forms\Components\Placeholder::make('updated_at')
                             ->label('Atualizado em:')
-                            ->content(fn (Account $record): string => $record->updated_at->format('d/m/Y H:i')),
+                            ->content(fn(Account $record): string => $record->updated_at->format('d/m/Y H:i')),
                     ]),
             ]);
     }
@@ -71,16 +71,14 @@ class AccountResource extends Resource
                         ->searchable()
                         ->size(TextColumnSize::Large)
                         ->weight(FontWeight::SemiBold)
-                        ->icon(fn (Account $record): ?string => $record->icon),
+                        ->icon(fn(Account $record): ?string => $record->icon),
                 ])->space(2),
             ])
             ->contentGrid([
                 'md' => 4,
             ])
             ->paginated([
-                12,
-                24,
-                36,
+                100,
                 'all',
             ])
             ->actionsAlignment('right')
@@ -94,7 +92,7 @@ class AccountResource extends Resource
                     }),
                 Tables\Actions\DeleteAction::make()
                     ->badge()
-                    ->visible(fn (): bool => static::getModel()::query()->count() > 1),
+                    ->visible(fn(): bool => static::getModel()::query()->count() > 1),
             ]);
     }
 

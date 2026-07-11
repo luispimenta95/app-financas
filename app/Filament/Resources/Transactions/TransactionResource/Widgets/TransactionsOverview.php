@@ -7,8 +7,8 @@ use App\Models\Transactions\Transaction;
 use Filament\Widgets\Concerns\InteractsWithPageTable;
 use Filament\Widgets\StatsOverviewWidget as BaseWidget;
 use Filament\Widgets\StatsOverviewWidget\Stat;
-use Illuminate\Support\Carbon;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Carbon;
 
 class TransactionsOverview extends BaseWidget
 {
@@ -70,15 +70,8 @@ class TransactionsOverview extends BaseWidget
     private function getTransactions(?string $startDate, ?string $endDate, bool $preview, array $categoriesIds, array $accountsIds, TransactionType $transactionType): Builder
     {
         $query = Transaction::where('transaction_type', $transactionType)
-            ->withoutInvestments();
-
-        if ($startDate && $endDate) {
-            $query->whereBetween('date', [$startDate, $endDate]);
-        }
-
-        if (!$preview) {
-            $query->where('finished', true);
-        }
+            ->withoutInvestments()
+            ->forCashFlowPeriod($startDate, $endDate, $preview);
 
         if (!empty($categoriesIds)) {
             $query->whereIn('category_id', $categoriesIds);
