@@ -67,6 +67,7 @@ class DashPanelProvider extends PanelProvider
             ])
             ->plugins([
                 TableLayoutTogglePlugin::make()
+                    ->setDefaultLayout('list')
                     ->persistLayoutInLocalStorage(true) // allow user to keep his layout preference in his local storage
                     ->shareLayoutBetweenPages(false) // allow all tables to share the layout option (requires persistLayoutInLocalStorage to be true)
                     ->displayToggleAction() // used to display the toogle button automatically, on the desired filament hook (defaults to table bar)
