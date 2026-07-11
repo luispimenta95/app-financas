@@ -25,12 +25,10 @@ class CreateTransaction extends CreateRecord
 
         if (!($data['finished'] ?? false)) {
             $data['payment_date'] = null;
-        }
-
-        if (($data['transaction_type'] ?? null) === 'income') {
-            $data['payment_date'] = null;
         } else {
-            $data['payment_date'] = TransactionResource::normalizeDateInput($data['payment_date'] ?? null);
+            $data['payment_date'] = TransactionResource::normalizeDateInput(
+                $data['payment_date'] ?? $dueDate
+            ) ?? $dueDate;
         }
 
         unset($data['recurrence_months']);

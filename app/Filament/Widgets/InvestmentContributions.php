@@ -19,11 +19,7 @@ class InvestmentContributions extends BaseWidget
 
         $query = Transaction::query()
             ->onlyInvestments()
-            ->whereBetween('date', [$startDate, $endDate]);
-
-        if (!$preview) {
-            $query->where('finished', true);
-        }
+            ->forCashFlowPeriod($startDate, $endDate, (bool) $preview);
 
         return [
             Stat::make(

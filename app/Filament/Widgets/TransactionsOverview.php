@@ -133,11 +133,11 @@ class TransactionsOverview extends BaseWidget
     ): Builder {
         $query = Transaction::where('transaction_type', $transactionType)
             ->withoutInvestments()
-            ->whereBetween('date', [$startDate, $endDate]);
-
-        if (!$preview) {
-            $query->where('finished', true);
-        }
+            ->forCashFlowPeriod(
+                Carbon::parse($startDate)->toDateString(),
+                Carbon::parse($endDate)->toDateString(),
+                $preview,
+            );
 
         if ($accountId) {
             $query->where('account_id', $accountId);
@@ -162,11 +162,11 @@ class TransactionsOverview extends BaseWidget
     {
         $query = Transaction::query()
             ->onlyInvestments()
-            ->whereBetween('date', [$startDate, $endDate]);
-
-        if (!$preview) {
-            $query->where('finished', true);
-        }
+            ->forCashFlowPeriod(
+                Carbon::parse($startDate)->toDateString(),
+                Carbon::parse($endDate)->toDateString(),
+                $preview,
+            );
 
         if ($accountId) {
             $query->where('account_id', $accountId);
@@ -182,8 +182,10 @@ class TransactionsOverview extends BaseWidget
         ?string $accountId,
         TransactionType $type,
     ): array {
+        $cashFlowDate = Transaction::cashFlowDateExpression();
+
         $rows = $this->getTransactions($startDate, $endDate, $preview, $accountId, $type)
-            ->selectRaw('DATE(date) as day, SUM(amount) as total')
+            ->selectRaw("DATE({$cashFlowDate}) as day, SUM(amount) as total")
             ->groupBy('day')
             ->orderBy('day')
             ->pluck('total')
@@ -207,16 +209,18 @@ class TransactionsOverview extends BaseWidget
 
     private function getInvestmentSparkline(mixed $startDate, mixed $endDate, bool $preview, ?string $accountId): array
     {
+        $cashFlowDate = Transaction::cashFlowDateExpression();
+
         $query = Transaction::query()
             ->onlyInvestments()
-            ->whereBetween('date', [$startDate, $endDate])
-            ->selectRaw('DATE(date) as day, SUM(amount) as total')
+            ->forCashFlowPeriod(
+                Carbon::parse($startDate)->toDateString(),
+                Carbon::parse($endDate)->toDateString(),
+                $preview,
+            )
+            ->selectRaw("DATE({$cashFlowDate}) as day, SUM(amount) as total")
             ->groupBy('day')
             ->orderBy('day');
-
-        if (!$preview) {
-            $query->where('finished', true);
-        }
 
         if ($accountId) {
             $query->where('account_id', $accountId);
