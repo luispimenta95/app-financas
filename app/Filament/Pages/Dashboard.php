@@ -2,6 +2,7 @@
 
 namespace App\Filament\Pages;
 
+use App\Filament\Widgets\MonthProjectionWidget;
 use Closure;
 use Filament\Forms;
 use Filament\Forms\Form;
@@ -10,6 +11,7 @@ use Filament\Pages\Dashboard as BaseDashboard;
 use Filament\Pages\Dashboard\Concerns\HasFiltersForm;
 use Filament\Support\Enums\ActionSize;
 use Filament\Support\Enums\IconSize;
+use Filament\Widgets\WidgetConfiguration;
 use Livewire\Component as Livewire;
 
 class Dashboard extends BaseDashboard
@@ -21,6 +23,23 @@ class Dashboard extends BaseDashboard
     protected static ?string $navigationLabel = 'Dashboard';
 
     protected static ?string $navigationIcon = 'heroicon-m-home';
+
+    /**
+     * @return array<class-string | WidgetConfiguration>
+     */
+    public function getVisibleWidgets(): array
+    {
+        $widgets = parent::getVisibleWidgets();
+
+        if (! MonthProjectionWidget::shouldDisplay($this->filters)) {
+            $widgets = array_values(array_filter(
+                $widgets,
+                fn (string|WidgetConfiguration $widget): bool => $this->normalizeWidgetClass($widget) !== MonthProjectionWidget::class,
+            ));
+        }
+
+        return $widgets;
+    }
 
     public function filtersForm(Form $form): Form
     {
