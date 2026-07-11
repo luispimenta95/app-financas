@@ -139,10 +139,15 @@ class TransactionResource extends Resource
         $livewire = $table->getLivewire();
 
         return $table
-            ->defaultSort('date', 'asc')
-            ->defaultGroup('date')
+            ->defaultSort(
+                fn (Builder $query, string $direction): Builder => $query->orderByRaw(
+                    Transaction::dueDateExpression() . ' ' . ($direction === 'desc' ? 'DESC' : 'ASC')
+                ),
+                'asc',
+            )
+            ->defaultGroup('due_date')
             ->modifyQueryUsing(fn (Builder $query): Builder => $query
-                ->orderBy('date')
+                ->orderByRaw(Transaction::dueDateExpression() . ' ASC')
                 ->orderByRaw("case when transaction_type = 'income' then 0 else 1 end")
                 ->orderBy('created_at'))
             ->columns(
@@ -243,9 +248,13 @@ class TransactionResource extends Resource
                     ->query(fn (Builder $query) => $query->where('finished', true)),
             ])
             ->groups([
-                Tables\Grouping\Group::make('date')
+                Tables\Grouping\Group::make('due_date')
                     ->label('Vencimento')
-                    ->getTitleFromRecordUsing(fn ($record): ?string => date('d/m/Y', strtotime($record->date))),
+                    ->getTitleFromRecordUsing(fn (Transaction $record): ?string => $record->displayDueDate()?->format('d/m/Y'))
+                    ->getKeyFromRecordUsing(fn (Transaction $record): ?string => $record->displayDueDate()?->toDateString())
+                    ->orderQueryUsing(fn (Builder $query, string $direction): Builder => $query->orderByRaw(
+                        Transaction::dueDateExpression() . ' ' . ($direction === 'desc' ? 'DESC' : 'ASC')
+                    )),
                 Tables\Grouping\Group::make('category_id')
                     ->label('Categoria')
                     ->getTitleFromRecordUsing(fn (?Transaction $record): ?string => Category::find($record->category_id)->name),
@@ -288,10 +297,13 @@ class TransactionResource extends Resource
                     'lg' => 2,
                 ])
                     ->schema([
-                        Tables\Columns\TextColumn::make('date')
+                        Tables\Columns\TextColumn::make('due_date')
                             ->label('Vencimento')
+                            ->getStateUsing(fn (Transaction $record) => $record->displayDueDate())
                             ->date('d/m/Y')
-                            ->sortable()
+                            ->sortable(query: fn (Builder $query, string $direction): Builder => $query->orderByRaw(
+                                Transaction::dueDateExpression() . ' ' . ($direction === 'desc' ? 'DESC' : 'ASC')
+                            ))
                             ->badge(),
                         Tables\Columns\TextColumn::make('payment_date')
                             ->label('Pagamento')
@@ -348,11 +360,14 @@ class TransactionResource extends Resource
 
                     return $state;
                 }),
-            Tables\Columns\TextColumn::make('date')
+            Tables\Columns\TextColumn::make('due_date')
                 ->label('Vencimento')
+                ->getStateUsing(fn (Transaction $record) => $record->displayDueDate())
                 ->date('d/m/Y')
                 ->badge()
-                ->sortable(),
+                ->sortable(query: fn (Builder $query, string $direction): Builder => $query->orderByRaw(
+                    Transaction::dueDateExpression() . ' ' . ($direction === 'desc' ? 'DESC' : 'ASC')
+                )),
             Tables\Columns\TextColumn::make('payment_date')
                 ->label('Pagamento')
                 ->date('d/m/Y')

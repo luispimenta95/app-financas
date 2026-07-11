@@ -39,8 +39,9 @@ class TodayTransactions extends BaseWidget
                 Tables\Columns\ToggleColumn::make('finished')
                     ->label('Finalizada')
                     ->alignCenter(),
-                Tables\Columns\TextColumn::make('date')
-                    ->label('Data')
+                Tables\Columns\TextColumn::make('due_date')
+                    ->label('Vencimento')
+                    ->getStateUsing(fn (Transaction $record) => $record->displayDueDate())
                     ->date('d/m/Y'),
                 Tables\Columns\TextColumn::make('description')
                     ->label('Descrição'),

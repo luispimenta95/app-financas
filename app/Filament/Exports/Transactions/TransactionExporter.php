@@ -21,9 +21,13 @@ class TransactionExporter extends Exporter
             ExportColumn::make('amount')
                 ->label('Total')
                 ->formatStateUsing(fn (?int $state): string => 'R$ ' . number_format($state / 100, 2, ',', '.')),
-            ExportColumn::make('date')
+            ExportColumn::make('due_date')
                 ->label('Vencimento')
-                ->formatStateUsing(fn (string $state): ?string => date('d/m/Y', strtotime($state))),
+                ->formatStateUsing(function (?string $state, Transaction $record): string {
+                    $date = $record->displayDueDate();
+
+                    return $date ? $date->format('d/m/Y') : '—';
+                }),
             ExportColumn::make('payment_date')
                 ->label('Pagamento')
                 ->formatStateUsing(fn (?string $state): string => $state ? date('d/m/Y', strtotime($state)) : '—'),
