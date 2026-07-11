@@ -16,7 +16,9 @@ class Dashboard extends BaseDashboard
 {
     use HasFiltersForm;
 
-    protected static ?string $title = 'Dashboard';
+    protected static ?string $title = 'Dashboard Financeiro';
+
+    protected static ?string $navigationLabel = 'Dashboard';
 
     protected static ?string $navigationIcon = 'heroicon-m-home';
 
@@ -25,7 +27,7 @@ class Dashboard extends BaseDashboard
         return $form
             ->schema([
                 Forms\Components\Section::make('Filtros')
-                    ->icon('heroicon-m-adjustments-horizontal')
+                    ->icon('heroicon-m-funnel')
                     ->collapsible()
                     ->collapsed()
                     ->columns(4)
@@ -84,6 +86,9 @@ class Dashboard extends BaseDashboard
 
     public function getColumns(): int|string|array
     {
-        return 3;
+        return [
+            'md' => 2,
+            'xl' => 4,
+        ];
     }
 }

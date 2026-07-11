@@ -17,6 +17,6 @@ class BoringAvatarsProvider implements Contracts\AvatarProvider
             ->map(fn (string $segment): string => filled($segment) ? mb_substr($segment, 0, 1) : '')
             ->join(' ');
 
-        return 'https://source.boringavatars.com/beam/120/' . urlencode($name) . '?colors=5b21b6,36e05a,0c0c0c';
+        return 'https://source.boringavatars.com/beam/120/' . urlencode($name) . '?colors=1e3a8a,3b82f6,0ea5e9';
     }
 }
