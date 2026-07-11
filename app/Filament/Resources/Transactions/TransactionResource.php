@@ -6,16 +6,16 @@ use App\Enums\TransactionType;
 use App\Filament\Exports\Transactions\TransactionExporter;
 use App\Filament\Resources\Transactions\TransactionResource\Pages;
 use App\Filament\Resources\Transactions\TransactionResource\Widgets;
-use App\Models\Transactions\Account;
-use App\Models\Transactions\Category;
 use App\Models\Transactions\Transaction;
 use App\Tables\Columns\MoneyColumn;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Support\Colors\Color;
+use Filament\Support\Enums\FontWeight;
 use Filament\Support\Enums\IconPosition;
 use Filament\Tables;
+use Filament\Tables\Columns\TextColumn\TextColumnSize;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
@@ -156,12 +156,12 @@ class TransactionResource extends Resource
                     : static::getTableColumns()
             )
             ->contentGrid(
-                fn () => $livewire->isTableLayout()
+                fn () => $livewire->isListLayout()
                     ? null
                     : [
                         'md' => 2,
                         'lg' => 3,
-                        'xl' => 4,
+                        'xl' => 3,
                     ]
             )
             ->filters([
@@ -257,22 +257,24 @@ class TransactionResource extends Resource
                     )),
                 Tables\Grouping\Group::make('category_id')
                     ->label('Categoria')
-                    ->getTitleFromRecordUsing(fn (?Transaction $record): ?string => Category::find($record->category_id)->name),
+                    ->getTitleFromRecordUsing(fn (Transaction $record): ?string => $record->category?->name),
                 Tables\Grouping\Group::make('account_id')
                     ->label('Conta')
-                    ->getTitleFromRecordUsing(fn (?Transaction $record): ?string => Account::find($record->account_id)->name),
-            ])
-            ->contentGrid([
-                'md' => 2,
-                'xl' => 3,
+                    ->getTitleFromRecordUsing(fn (Transaction $record): ?string => $record->account?->name),
             ])
             ->paginated([
                 100,
                 'all',
             ])
+            ->defaultPaginationPageOption(25)
+            ->actionsAlignment('right')
             ->actions([
-                Tables\Actions\ViewAction::make(),
-                Tables\Actions\EditAction::make(),
+                Tables\Actions\ViewAction::make()
+                    ->iconButton()
+                    ->tooltip('Visualizar'),
+                Tables\Actions\EditAction::make()
+                    ->iconButton()
+                    ->tooltip('Editar'),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
@@ -330,18 +332,51 @@ class TransactionResource extends Resource
                             ->color(fn ($record) => Color::hex($record->category->color))
                             ->alignEnd(),
 
-                        MoneyColumn::make('amount')
-                            ->label('Total')
-                            ->numeric()
-                            ->sortable()
-                            ->size(Tables\Columns\TextColumn\TextColumnSize::Medium),
-                        Tables\Columns\TextColumn::make('account.name')
-                            ->label('Conta')
-                            ->searchable()
-                            ->alignEnd()
-                            ->size(Tables\Columns\TextColumn\TextColumnSize::Medium),
-                    ]),
-            ]),
+                Tables\Columns\TextColumn::make('description')
+                    ->label('Descrição')
+                    ->searchable()
+                    ->weight(FontWeight::SemiBold)
+                    ->size(TextColumnSize::Large)
+                    ->wrap(),
+
+                Tables\Columns\Layout\Split::make([
+                    Tables\Columns\TextColumn::make('category.name')
+                        ->label('Categoria')
+                        ->searchable()
+                        ->badge()
+                        ->icon(fn (Transaction $record): ?string => $record->category?->icon)
+                        ->color(fn (Transaction $record) => $record->category?->color
+                            ? Color::hex($record->category->color)
+                            : 'gray'),
+                    Tables\Columns\TextColumn::make('account.name')
+                        ->label('Conta')
+                        ->searchable()
+                        ->color('gray')
+                        ->icon('heroicon-m-wallet')
+                        ->grow(false),
+                ]),
+
+                Tables\Columns\Layout\Split::make([
+                    MoneyColumn::make('amount')
+                        ->label('Total')
+                        ->sortable()
+                        ->weight(FontWeight::Bold)
+                        ->size(TextColumnSize::Large)
+                        ->color(fn (Transaction $record): string => match ($record->transaction_type) {
+                            TransactionType::Income => 'success',
+                            TransactionType::Expense => 'danger',
+                            default => 'gray',
+                        }),
+                    Tables\Columns\IconColumn::make('finished')
+                        ->label('Finalizada')
+                        ->boolean()
+                        ->trueIcon('heroicon-m-check-circle')
+                        ->falseIcon('heroicon-m-clock')
+                        ->trueColor('success')
+                        ->falseColor('warning')
+                        ->grow(false),
+                ]),
+            ])->space(3),
         ];
     }
 
@@ -377,25 +412,46 @@ class TransactionResource extends Resource
                 ->sortable(),
             Tables\Columns\TextColumn::make('description')
                 ->label('Descrição')
-                ->searchable(),
-            MoneyColumn::make('amount')
-                ->label('Total')
-                ->numeric()
-                ->sortable(),
+                ->searchable()
+                ->weight(FontWeight::Medium)
+                ->wrap()
+                ->limit(48)
+                ->tooltip(fn (Transaction $record): string => $record->description)
+                ->description(fn (Transaction $record): ?string => $record->account?->name),
             Tables\Columns\TextColumn::make('category.name')
                 ->label('Categoria')
                 ->searchable()
                 ->badge()
-                ->icon(fn ($record) => $record->category->icon)
-                ->color(fn ($record) => Color::hex($record->category->color)),
+                ->icon(fn (Transaction $record): ?string => $record->category?->icon)
+                ->color(fn (Transaction $record) => $record->category?->color
+                    ? Color::hex($record->category->color)
+                    : 'gray')
+                ->toggleable(),
             Tables\Columns\TextColumn::make('transaction_type')
                 ->label('Tipo')
                 ->badge()
                 ->iconPosition(IconPosition::After)
-                ->alignCenter(),
+                ->alignCenter()
+                ->toggleable(),
             Tables\Columns\TextColumn::make('account.name')
                 ->label('Conta')
-                ->searchable(),
+                ->searchable()
+                ->toggleable(isToggledHiddenByDefault: true),
+            MoneyColumn::make('amount')
+                ->label('Total')
+                ->sortable()
+                ->alignEnd()
+                ->weight(FontWeight::SemiBold)
+                ->color(fn (Transaction $record): string => match ($record->transaction_type) {
+                    TransactionType::Income => 'success',
+                    TransactionType::Expense => 'danger',
+                    default => 'gray',
+                }),
+            Tables\Columns\TextColumn::make('due_date')
+                ->label('Vencimento')
+                ->date('d/m/Y')
+                ->sortable()
+                ->toggleable(isToggledHiddenByDefault: true),
             Tables\Columns\TextColumn::make('created_at')
                 ->label('Criado em')
                 ->dateTime('d/m/Y H:i')

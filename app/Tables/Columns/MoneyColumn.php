@@ -6,6 +6,15 @@ use Filament\Tables\Columns\TextColumn;
 
 class MoneyColumn extends TextColumn
 {
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $this->extraAttributes([
+            'class' => 'tabular-nums tracking-tight',
+        ], merge: true);
+    }
+
     public function getState(): mixed
     {
         if (!$this->getRecord()) {
@@ -15,6 +24,10 @@ class MoneyColumn extends TextColumn
         $state = ($this->getStateUsing !== null) ?
             $this->evaluate($this->getStateUsing) :
             $this->getStateFromRecord();
+
+        if ($state === null) {
+            return null;
+        }
 
         return 'R$ ' . number_format($state / 100, 2, decimal_separator: ',', thousands_separator: '.');
     }
