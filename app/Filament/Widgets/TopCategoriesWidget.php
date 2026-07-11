@@ -57,11 +57,7 @@ class TopCategoriesWidget extends Widget
         foreach ($categories as $category) {
             $query = $category->transactions()
                 ->where('transaction_type', TransactionType::Expense)
-                ->whereBetween('date', [$startDate, $endDate]);
-
-            if (!$preview) {
-                $query->where('finished', true);
-            }
+                ->forCashFlowPeriod($startDate, $endDate, $preview);
 
             if ($accountId) {
                 $query->where('account_id', $accountId);

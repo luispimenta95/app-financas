@@ -101,11 +101,7 @@ class CategoriesChart extends ChartWidget
     {
         $query = Transaction::where('transaction_type', $type)
             ->withoutInvestments()
-            ->whereBetween('date', [$startDate, $endDate]);
-
-        if (!$preview) {
-            $query->where('finished', true);
-        }
+            ->forCashFlowPeriod($startDate, $endDate, $preview);
 
         if ($accountId) {
             $query->where('account_id', $accountId);
@@ -118,11 +114,7 @@ class CategoriesChart extends ChartWidget
     {
         $query = Transaction::query()
             ->onlyInvestments()
-            ->whereBetween('date', [$startDate, $endDate]);
-
-        if (!$preview) {
-            $query->where('finished', true);
-        }
+            ->forCashFlowPeriod($startDate, $endDate, $preview);
 
         if ($accountId) {
             $query->where('account_id', $accountId);

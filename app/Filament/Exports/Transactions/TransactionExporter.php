@@ -22,8 +22,11 @@ class TransactionExporter extends Exporter
                 ->label('Total')
                 ->formatStateUsing(fn (?int $state): string => 'R$ ' . number_format($state / 100, 2, ',', '.')),
             ExportColumn::make('date')
-                ->label('Data')
+                ->label('Vencimento')
                 ->formatStateUsing(fn (string $state): ?string => date('d/m/Y', strtotime($state))),
+            ExportColumn::make('payment_date')
+                ->label('Pagamento')
+                ->formatStateUsing(fn (?string $state): string => $state ? date('d/m/Y', strtotime($state)) : '—'),
             ExportColumn::make('finished')
                 ->label('Finalizada')
                 ->formatStateUsing(fn (bool $state): string => $state ? 'Sim' : 'Não'),

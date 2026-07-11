@@ -110,19 +110,17 @@ class MonthRevenue extends ChartWidget
 
     private function getPeriodAmount(string $startDate, string $endDate, bool $preview, ?string $accountId, TransactionType $transactionType): Collection
     {
+        $cashFlowDate = Transaction::cashFlowDateExpression();
+
         $query = Transaction::selectRaw("
                 sum(`amount`) as `aggregate`, 
-                DATE_FORMAT(`date`, '%Y-%m') AS `new_date`, 
-                YEAR(`date`) AS `year`, 
-                MONTH(`date`) AS `month`
+                DATE_FORMAT({$cashFlowDate}, '%Y-%m') AS `new_date`, 
+                YEAR({$cashFlowDate}) AS `year`, 
+                MONTH({$cashFlowDate}) AS `month`
             ")
             ->where('transaction_type', $transactionType)
             ->withoutInvestments()
-            ->whereBetween('date', [$startDate, $endDate]);
-
-        if (!$preview) {
-            $query->where('finished', true);
-        }
+            ->forCashFlowPeriod($startDate, $endDate, $preview);
 
         if ($accountId) {
             $query->where('account_id', $accountId);
