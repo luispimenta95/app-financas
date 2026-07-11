@@ -146,6 +146,16 @@ class Transaction extends Model
         return 'COALESCE(payment_date, due_date, date)';
     }
 
+    public static function dueDateExpression(): string
+    {
+        return 'COALESCE(due_date, date)';
+    }
+
+    public function displayDueDate(): ?Carbon
+    {
+        return $this->due_date ?? $this->date;
+    }
+
     private static function normalizePeriodBoundary(mixed $value): ?string
     {
         if ($value === null || $value === '') {

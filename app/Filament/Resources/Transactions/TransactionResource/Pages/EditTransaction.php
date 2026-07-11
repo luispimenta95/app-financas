@@ -10,6 +10,15 @@ class EditTransaction extends EditRecord
 {
     protected static string $resource = TransactionResource::class;
 
+    protected function mutateFormDataBeforeFill(array $data): array
+    {
+        $data['due_date'] = TransactionResource::normalizeDateInput(
+            $data['due_date'] ?? ($data['date'] ?? null)
+        );
+
+        return $data;
+    }
+
     protected function mutateFormDataBeforeSave(array $data): array
     {
         $dueDate = TransactionResource::normalizeDateInput($data['due_date'] ?? ($data['date'] ?? null));
