@@ -107,7 +107,45 @@ class TransactionsOverview extends BaseWidget
     private function getCurrentBalance($startDate, $endDate, bool $preview, array $categoriesIds, array $accountsIds)
     {
         return $this->getIncomes($startDate, $endDate, $preview, $categoriesIds, $accountsIds)
-            - $this->getExpenses($startDate, $endDate, $preview, $categoriesIds, $accountsIds);
+            - $this->getExpenses($startDate, $endDate, $preview, $categoriesIds, $accountsIds)
+            - $this->getInvestmentBalanceImpact($startDate, $endDate, $preview, $categoriesIds, $accountsIds);
+    }
+
+    private function getInvestmentBalanceImpact(
+        ?string $startDate,
+        ?string $endDate,
+        bool $preview,
+        array $categoriesIds,
+        array $accountsIds,
+    ): int {
+        $contributions = $this->sumInvestmentAmount($startDate, $endDate, $preview, $categoriesIds, $accountsIds, TransactionType::Expense);
+        $redemptions = $this->sumInvestmentAmount($startDate, $endDate, $preview, $categoriesIds, $accountsIds, TransactionType::Income);
+
+        return $contributions - $redemptions;
+    }
+
+    private function sumInvestmentAmount(
+        ?string $startDate,
+        ?string $endDate,
+        bool $preview,
+        array $categoriesIds,
+        array $accountsIds,
+        TransactionType $transactionType,
+    ): int {
+        $query = Transaction::query()
+            ->onlyInvestments()
+            ->where('transaction_type', $transactionType)
+            ->forCashFlowPeriod($startDate, $endDate, $preview);
+
+        if (!empty($categoriesIds)) {
+            $query->whereIn('category_id', $categoriesIds);
+        }
+
+        if (!empty($accountsIds)) {
+            $query->whereIn('account_id', $accountsIds);
+        }
+
+        return (int) $query->sum('amount');
     }
 
     private function formatCurrency(int $currency): string
