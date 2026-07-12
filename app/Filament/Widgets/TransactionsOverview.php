@@ -27,12 +27,14 @@ class TransactionsOverview extends BaseWidget
 
         $income = $this->getIncomes($startDate, $endDate, $preview, $accountId);
         $expense = $this->getExpenses($startDate, $endDate, $preview, $accountId);
-        $balance = $income - $expense;
+        $investmentImpact = $this->getInvestmentBalanceImpact($startDate, $endDate, $preview, $accountId);
+        $balance = $income - $expense - $investmentImpact;
         $investments = $this->getInvestments($startDate, $endDate, $preview, $accountId);
 
         $prevIncome = $this->getIncomes($previous['start'], $previous['end'], $preview, $accountId);
         $prevExpense = $this->getExpenses($previous['start'], $previous['end'], $preview, $accountId);
-        $prevBalance = $prevIncome - $prevExpense;
+        $prevInvestmentImpact = $this->getInvestmentBalanceImpact($previous['start'], $previous['end'], $preview, $accountId);
+        $prevBalance = $prevIncome - $prevExpense - $prevInvestmentImpact;
         $prevInvestments = $this->getInvestments($previous['start'], $previous['end'], $preview, $accountId);
 
         return [
@@ -160,8 +162,31 @@ class TransactionsOverview extends BaseWidget
 
     private function getInvestments(mixed $startDate, mixed $endDate, bool $preview, ?string $accountId): int
     {
+        return $this->sumInvestmentAmount(
+            $startDate,
+            $endDate,
+            $preview,
+            $accountId,
+            TransactionType::Expense,
+        );
+    }
+
+    private function getInvestmentBalanceImpact(mixed $startDate, mixed $endDate, bool $preview, ?string $accountId): int
+    {
+        return $this->sumInvestmentAmount($startDate, $endDate, $preview, $accountId, TransactionType::Expense)
+            - $this->sumInvestmentAmount($startDate, $endDate, $preview, $accountId, TransactionType::Income);
+    }
+
+    private function sumInvestmentAmount(
+        mixed $startDate,
+        mixed $endDate,
+        bool $preview,
+        ?string $accountId,
+        TransactionType $transactionType,
+    ): int {
         $query = Transaction::query()
             ->onlyInvestments()
+            ->where('transaction_type', $transactionType)
             ->forCashFlowPeriod(
                 Carbon::parse($startDate)->toDateString(),
                 Carbon::parse($endDate)->toDateString(),
@@ -200,19 +225,37 @@ class TransactionsOverview extends BaseWidget
     {
         $income = $this->getSparkline($startDate, $endDate, $preview, $accountId, TransactionType::Income);
         $expense = $this->getSparkline($startDate, $endDate, $preview, $accountId, TransactionType::Expense);
+        $investmentImpact = $this->getInvestmentBalanceSparkline($startDate, $endDate, $preview, $accountId);
 
         return collect($income)
-            ->zip($expense)
+            ->zip($expense, $investmentImpact)
+            ->map(fn ($values) => ($values[0] ?? 0) - ($values[1] ?? 0) - ($values[2] ?? 0))
+            ->all();
+    }
+
+    private function getInvestmentBalanceSparkline(mixed $startDate, mixed $endDate, bool $preview, ?string $accountId): array
+    {
+        $contributions = $this->getInvestmentSparklineByType($startDate, $endDate, $preview, $accountId, TransactionType::Expense);
+        $redemptions = $this->getInvestmentSparklineByType($startDate, $endDate, $preview, $accountId, TransactionType::Income);
+
+        return collect($contributions)
+            ->zip($redemptions)
             ->map(fn ($pair) => ($pair[0] ?? 0) - ($pair[1] ?? 0))
             ->all();
     }
 
-    private function getInvestmentSparkline(mixed $startDate, mixed $endDate, bool $preview, ?string $accountId): array
-    {
+    private function getInvestmentSparklineByType(
+        mixed $startDate,
+        mixed $endDate,
+        bool $preview,
+        ?string $accountId,
+        TransactionType $transactionType,
+    ): array {
         $cashFlowDate = Transaction::cashFlowDateExpression();
 
         $query = Transaction::query()
             ->onlyInvestments()
+            ->where('transaction_type', $transactionType)
             ->forCashFlowPeriod(
                 Carbon::parse($startDate)->toDateString(),
                 Carbon::parse($endDate)->toDateString(),
@@ -232,6 +275,11 @@ class TransactionsOverview extends BaseWidget
             ->all();
 
         return $this->padSparkline($rows);
+    }
+
+    private function getInvestmentSparkline(mixed $startDate, mixed $endDate, bool $preview, ?string $accountId): array
+    {
+        return $this->getInvestmentSparklineByType($startDate, $endDate, $preview, $accountId, TransactionType::Expense);
     }
 
     private function padSparkline(array $rows): array

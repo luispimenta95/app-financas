@@ -2,6 +2,7 @@
 
 namespace App\Filament\Widgets;
 
+use App\Enums\TransactionType;
 use App\Models\Transactions\Transaction;
 use Filament\Widgets\Concerns\InteractsWithPageFilters;
 use Filament\Widgets\StatsOverviewWidget as BaseWidget;
@@ -19,6 +20,7 @@ class InvestmentContributions extends BaseWidget
 
         $query = Transaction::query()
             ->onlyInvestments()
+            ->where('transaction_type', TransactionType::Expense)
             ->forCashFlowPeriod($startDate, $endDate, (bool) $preview);
 
         return [

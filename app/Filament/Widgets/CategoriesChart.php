@@ -114,6 +114,7 @@ class CategoriesChart extends ChartWidget
     {
         $query = Transaction::query()
             ->onlyInvestments()
+            ->where('transaction_type', TransactionType::Expense)
             ->forCashFlowPeriod($startDate, $endDate, $preview);
 
         if ($accountId) {
