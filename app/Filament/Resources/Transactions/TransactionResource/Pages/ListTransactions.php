@@ -179,7 +179,14 @@ class ListTransactions extends ListRecords
                         return;
                     }
 
-                    target.scrollIntoView({ block: 'start', behavior: 'smooth' });
+                    const topbar = document.querySelector('.fi-topbar');
+                    const widgets = document.querySelector('.fi-page-header-widgets');
+                    const offset = (topbar?.getBoundingClientRect().height ?? 0)
+                        + (widgets?.getBoundingClientRect().height ?? 0)
+                        + 8;
+                    const top = target.getBoundingClientRect().top + window.scrollY - offset;
+
+                    window.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
                 };
 
                 requestAnimationFrame(() => requestAnimationFrame(scrollToGroup));

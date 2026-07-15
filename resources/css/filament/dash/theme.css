@@ -47,6 +47,20 @@
     @apply transition-all duration-200 hover:ring-blue-500/30 hover:shadow-lg hover:shadow-blue-500/5;
 }
 
+/*
+ * Mantém o resumo Receitas/Despesas/Saldo visível ao rolar a lista de transações.
+ * O topbar do Filament tem h-16 (4rem); o widget fica logo abaixo dele.
+ */
+.fi-page-header-widgets {
+    @apply sticky z-10 bg-slate-50/95 py-3 backdrop-blur-md dark:bg-slate-950/95;
+    top: 4rem;
+}
+
+.fi-ta-group-header {
+    /* Espaço para topbar (4rem) + widget sticky (~7rem) ao usar scrollIntoView */
+    scroll-margin-top: 11rem;
+}
+
 .fi-header-heading {
     @apply text-2xl font-bold tracking-tight dark:text-white;
 }
