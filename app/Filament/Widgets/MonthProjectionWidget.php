@@ -37,8 +37,7 @@ class MonthProjectionWidget extends BaseWidget
 
         $income = $this->sumAmount(TransactionType::Income, $startDate, $endDate);
         $expense = $this->sumAmount(TransactionType::Expense, $startDate, $endDate);
-        $investmentImpact = $this->sumInvestmentBalanceImpact($startDate, $endDate);
-        $balance = $income - $expense - $investmentImpact;
+        $balance = $income - $expense;
 
         return [
             Stat::make('Receitas projetadas', $this->formatCurrency($income))
@@ -63,23 +62,6 @@ class MonthProjectionWidget extends BaseWidget
             ->withoutInvestments()
             ->forCashFlowPeriod($startDate, $endDate, preview: true)
             ->sum('amount');
-    }
-
-    private function sumInvestmentBalanceImpact(string $startDate, string $endDate): int
-    {
-        $contributions = (int) Transaction::query()
-            ->onlyInvestments()
-            ->where('transaction_type', TransactionType::Expense)
-            ->forCashFlowPeriod($startDate, $endDate, preview: true)
-            ->sum('amount');
-
-        $redemptions = (int) Transaction::query()
-            ->onlyInvestments()
-            ->where('transaction_type', TransactionType::Income)
-            ->forCashFlowPeriod($startDate, $endDate, preview: true)
-            ->sum('amount');
-
-        return $contributions - $redemptions;
     }
 
     private function formatCurrency(int $currency): string
