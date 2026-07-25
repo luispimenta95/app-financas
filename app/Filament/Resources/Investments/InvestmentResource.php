@@ -59,9 +59,6 @@ class InvestmentResource extends Resource
 
                 Forms\Components\DatePicker::make('application_date')
                     ->label('Data de aplicação')
-                    ->native(false)
-                    ->displayFormat('d/m/Y')
-                    ->format('Y-m-d')
                     ->required()
                     ->default(now()->toDateString()),
 
@@ -95,9 +92,6 @@ class InvestmentResource extends Resource
 
                 Forms\Components\DatePicker::make('maturity_date')
                     ->label('Data de vencimento')
-                    ->native(false)
-                    ->displayFormat('d/m/Y')
-                    ->format('Y-m-d')
                     ->visible(fn (Get $get): bool => !(bool) $get('daily_liquidity'))
                     ->required(fn (Get $get): bool => !(bool) $get('daily_liquidity'))
                     ->helperText('Obrigatório quando o investimento não tem liquidez diária.')
