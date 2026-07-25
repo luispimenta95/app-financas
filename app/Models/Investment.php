@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\InvestmentRateType;
 use App\Enums\InvestmentType;
 use App\Models\Scopes\TenantScope;
 use App\Models\Traits\BelongsToUser;
@@ -24,7 +25,8 @@ class Investment extends Model
         'institution',
         'amount',
         'application_date',
-        'cdi_rate',
+        'rate_type',
+        'interest_rate',
         'daily_liquidity',
         'maturity_date',
     ];
@@ -35,7 +37,8 @@ class Investment extends Model
             'type' => InvestmentType::class,
             'amount' => 'integer',
             'application_date' => 'date',
-            'cdi_rate' => 'decimal:2',
+            'rate_type' => InvestmentRateType::class,
+            'interest_rate' => 'decimal:2',
             'daily_liquidity' => 'boolean',
             'maturity_date' => 'date',
         ];
@@ -44,6 +47,11 @@ class Investment extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function formattedInterestRate(): string
+    {
+        return ($this->rate_type ?? InvestmentRateType::Cdi)->formatRate($this->interest_rate);
     }
 
     public function scopeOfType(Builder $query, InvestmentType $type): Builder
