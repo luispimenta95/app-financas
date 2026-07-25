@@ -49,6 +49,9 @@ class InvestmentFactory extends Factory
     {
         return $this->state(fn () => [
             'type' => InvestmentType::VariableIncome,
+            'name' => Investment::VARIABLE_INCOME_NAME,
+            'institution' => null,
+            'application_date' => null,
             'rate_type' => InvestmentRateType::Cdi,
             'interest_rate' => null,
             'daily_liquidity' => true,

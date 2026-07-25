@@ -38,7 +38,7 @@ class InvestmentsTotalWidget extends BaseWidget
             Stat::make(InvestmentType::VariableIncome->getLabel(), $this->formatCurrency($variableIncomeTotal))
                 ->icon(InvestmentType::VariableIncome->getIcon())
                 ->color('primary')
-                ->description('Soma da renda variável'),
+                ->description('Controle parcial do valor aplicado'),
         ];
     }
 

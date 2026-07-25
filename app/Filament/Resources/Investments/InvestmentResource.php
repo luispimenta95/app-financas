@@ -42,31 +42,36 @@ class InvestmentResource extends Resource
                 Forms\Components\TextInput::make('name')
                     ->label('Nome')
                     ->placeholder('Ex: CDB Liquidez Diária')
-                    ->required()
+                    ->required(fn (Get $get, ?Investment $record): bool => static::isFixedIncomeForm($get, $record))
+                    ->visible(fn (Get $get, ?Investment $record): bool => static::isFixedIncomeForm($get, $record))
                     ->maxLength(255),
 
                 Forms\Components\TextInput::make('institution')
                     ->label('Instituição')
                     ->placeholder('Ex: Nubank, XP, Itaú')
-                    ->required()
+                    ->required(fn (Get $get, ?Investment $record): bool => static::isFixedIncomeForm($get, $record))
+                    ->visible(fn (Get $get, ?Investment $record): bool => static::isFixedIncomeForm($get, $record))
                     ->maxLength(255),
 
                 Money::make('amount')
                     ->label('Valor aplicado')
                     ->required()
                     ->formatStateUsing(fn (?int $state) => number_format(($state ?? 0) / 100, 2, ',', '.'))
-                    ->dehydrateStateUsing(fn (?string $state): ?int => str((string) $state)->replace(['.', ','], '')->toInteger()),
+                    ->dehydrateStateUsing(fn (?string $state): ?int => str((string) $state)->replace(['.', ','], '')->toInteger())
+                    ->columnSpan(fn (Get $get, ?Investment $record): int => static::isFixedIncomeForm($get, $record) ? 1 : 2),
 
                 Forms\Components\DatePicker::make('application_date')
                     ->label('Data de aplicação')
-                    ->required()
+                    ->required(fn (Get $get, ?Investment $record): bool => static::isFixedIncomeForm($get, $record))
+                    ->visible(fn (Get $get, ?Investment $record): bool => static::isFixedIncomeForm($get, $record))
                     ->default(now()->toDateString()),
 
                 Forms\Components\ToggleButtons::make('rate_type')
                     ->label('Tipo de rentabilidade')
                     ->options(InvestmentRateType::class)
                     ->inline()
-                    ->required()
+                    ->required(fn (Get $get, ?Investment $record): bool => static::isFixedIncomeForm($get, $record))
+                    ->visible(fn (Get $get, ?Investment $record): bool => static::isFixedIncomeForm($get, $record))
                     ->live()
                     ->default(InvestmentRateType::Cdi->value)
                     ->columnSpanFull(),
@@ -74,7 +79,8 @@ class InvestmentResource extends Resource
                 Forms\Components\TextInput::make('interest_rate')
                     ->label(fn (Get $get): string => static::resolveRateType($get('rate_type'))->getRateLabel())
                     ->numeric()
-                    ->required()
+                    ->required(fn (Get $get, ?Investment $record): bool => static::isFixedIncomeForm($get, $record))
+                    ->visible(fn (Get $get, ?Investment $record): bool => static::isFixedIncomeForm($get, $record))
                     ->minValue(0)
                     ->step(0.01)
                     ->suffix(fn (Get $get): string => static::resolveRateType($get('rate_type'))->getRateSuffix())
@@ -85,15 +91,16 @@ class InvestmentResource extends Resource
                     ->label('Liquidez diária')
                     ->boolean()
                     ->inline()
-                    ->required()
+                    ->required(fn (Get $get, ?Investment $record): bool => static::isFixedIncomeForm($get, $record))
+                    ->visible(fn (Get $get, ?Investment $record): bool => static::isFixedIncomeForm($get, $record))
                     ->live()
                     ->default(true)
                     ->columnSpanFull(),
 
                 Forms\Components\DatePicker::make('maturity_date')
                     ->label('Data de vencimento')
-                    ->visible(fn (Get $get): bool => !(bool) $get('daily_liquidity'))
-                    ->required(fn (Get $get): bool => !(bool) $get('daily_liquidity'))
+                    ->visible(fn (Get $get, ?Investment $record): bool => static::isFixedIncomeForm($get, $record) && !(bool) $get('daily_liquidity'))
+                    ->required(fn (Get $get, ?Investment $record): bool => static::isFixedIncomeForm($get, $record) && !(bool) $get('daily_liquidity'))
                     ->helperText('Obrigatório quando o investimento não tem liquidez diária.')
                     ->columnSpanFull(),
             ]);
@@ -111,7 +118,8 @@ class InvestmentResource extends Resource
                 TextColumn::make('institution')
                     ->label('Instituição')
                     ->searchable()
-                    ->sortable(),
+                    ->sortable()
+                    ->placeholder('—'),
 
                 TextColumn::make('type')
                     ->label('Tipo')
@@ -131,6 +139,7 @@ class InvestmentResource extends Resource
                 TextColumn::make('application_date')
                     ->label('Aplicação')
                     ->date('d/m/Y')
+                    ->placeholder('—')
                     ->sortable(),
 
                 TextColumn::make('interest_rate')
@@ -142,7 +151,10 @@ class InvestmentResource extends Resource
                 IconColumn::make('daily_liquidity')
                     ->label('Liq. diária')
                     ->boolean()
-                    ->alignCenter(),
+                    ->alignCenter()
+                    ->getStateUsing(fn (Investment $record): ?bool => $record->type === InvestmentType::VariableIncome
+                        ? null
+                        : $record->daily_liquidity),
 
                 TextColumn::make('maturity_date')
                     ->label('Vencimento')
@@ -153,7 +165,11 @@ class InvestmentResource extends Resource
             ->defaultSort('application_date', 'desc')
             ->actions([
                 Tables\Actions\EditAction::make()
-                    ->mutateFormDataUsing(function (array $data): array {
+                    ->mutateFormDataUsing(function (array $data, Investment $record): array {
+                        if ($record->type === InvestmentType::VariableIncome) {
+                            return Investment::variableIncomeAttributes((int) $data['amount']);
+                        }
+
                         if (($data['daily_liquidity'] ?? true) === true) {
                             $data['maturity_date'] = null;
                         }
@@ -179,6 +195,21 @@ class InvestmentResource extends Resource
     public static function getNavigationBadge(): ?string
     {
         return (string) static::getModel()::count();
+    }
+
+    private static function isFixedIncomeForm(Get $get, ?Investment $record): bool
+    {
+        if ($record instanceof Investment) {
+            return $record->type === InvestmentType::FixedIncome;
+        }
+
+        $type = $get('type');
+
+        if ($type instanceof InvestmentType) {
+            return $type === InvestmentType::FixedIncome;
+        }
+
+        return InvestmentType::tryFrom((string) $type) !== InvestmentType::VariableIncome;
     }
 
     private static function resolveRateType(mixed $rateType): InvestmentRateType
