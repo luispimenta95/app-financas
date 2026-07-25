@@ -160,6 +160,16 @@ test('renda variavel e unica e pode ser atualizada', function () {
         ->and($existing->fresh()->amount)->toBe(250000);
 });
 
+test('tabela de investimentos exibe updated_at no formato brasileiro', function () {
+    $investment = Investment::factory()->for($this->user)->variableIncome()->create([
+        'amount' => 100000,
+    ]);
+
+    Livewire::test(ManageInvestments::class)
+        ->assertCanRenderTableColumn('updated_at')
+        ->assertSee($investment->updated_at->format('d/m/Y H:i'));
+});
+
 test('nao permite criar segunda renda variavel', function () {
     Investment::factory()->for($this->user)->variableIncome()->create([
         'amount' => 100000,
