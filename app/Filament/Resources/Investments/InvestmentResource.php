@@ -2,8 +2,8 @@
 
 namespace App\Filament\Resources\Investments;
 
+use App\Enums\InvestmentRateType;
 use App\Enums\InvestmentType;
-use App\Filament\Resources\Investments\Pages;
 use App\Models\Investment;
 use Filament\Forms;
 use Filament\Forms\Form;
@@ -11,8 +11,8 @@ use Filament\Forms\Get;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Columns\IconColumn;
-use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Columns\Summarizers\Sum;
+use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 use Leandrocfe\FilamentPtbrFormFields\Money;
 
@@ -65,15 +65,24 @@ class InvestmentResource extends Resource
                     ->required()
                     ->default(now()->toDateString()),
 
-                Forms\Components\TextInput::make('cdi_rate')
-                    ->label('Taxa de juros (% do CDI)')
+                Forms\Components\ToggleButtons::make('rate_type')
+                    ->label('Tipo de rentabilidade')
+                    ->options(InvestmentRateType::class)
+                    ->inline()
+                    ->required()
+                    ->live()
+                    ->default(InvestmentRateType::Cdi->value)
+                    ->columnSpanFull(),
+
+                Forms\Components\TextInput::make('interest_rate')
+                    ->label(fn (Get $get): string => static::resolveRateType($get('rate_type'))->getRateLabel())
                     ->numeric()
                     ->required()
                     ->minValue(0)
                     ->step(0.01)
-                    ->suffix('% CDI')
-                    ->placeholder('100')
-                    ->helperText('Informe o percentual do CDI. Ex: 100 = 100% do CDI.'),
+                    ->suffix(fn (Get $get): string => static::resolveRateType($get('rate_type'))->getRateSuffix())
+                    ->placeholder(fn (Get $get): string => static::resolveRateType($get('rate_type'))->getRatePlaceholder())
+                    ->helperText(fn (Get $get): string => static::resolveRateType($get('rate_type'))->getRateHelperText()),
 
                 Forms\Components\ToggleButtons::make('daily_liquidity')
                     ->label('Liquidez diária')
@@ -89,8 +98,8 @@ class InvestmentResource extends Resource
                     ->native(false)
                     ->displayFormat('d/m/Y')
                     ->format('Y-m-d')
-                    ->visible(fn (Get $get): bool => ! (bool) $get('daily_liquidity'))
-                    ->required(fn (Get $get): bool => ! (bool) $get('daily_liquidity'))
+                    ->visible(fn (Get $get): bool => !(bool) $get('daily_liquidity'))
+                    ->required(fn (Get $get): bool => !(bool) $get('daily_liquidity'))
                     ->helperText('Obrigatório quando o investimento não tem liquidez diária.')
                     ->columnSpanFull(),
             ]);
@@ -130,10 +139,10 @@ class InvestmentResource extends Resource
                     ->date('d/m/Y')
                     ->sortable(),
 
-                TextColumn::make('cdi_rate')
-                    ->label('% CDI')
+                TextColumn::make('interest_rate')
+                    ->label('Rentabilidade')
                     ->alignEnd()
-                    ->formatStateUsing(fn ($state): string => filled($state) ? number_format((float) $state, 2, ',', '.') . '%' : '—')
+                    ->state(fn (Investment $record): string => $record->formattedInterestRate())
                     ->sortable(),
 
                 IconColumn::make('daily_liquidity')
@@ -176,5 +185,14 @@ class InvestmentResource extends Resource
     public static function getNavigationBadge(): ?string
     {
         return (string) static::getModel()::count();
+    }
+
+    private static function resolveRateType(mixed $rateType): InvestmentRateType
+    {
+        if ($rateType instanceof InvestmentRateType) {
+            return $rateType;
+        }
+
+        return InvestmentRateType::tryFrom((string) $rateType) ?? InvestmentRateType::Cdi;
     }
 }

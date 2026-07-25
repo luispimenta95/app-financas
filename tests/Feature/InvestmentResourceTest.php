@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\InvestmentRateType;
 use App\Enums\InvestmentType;
 use App\Filament\Resources\Investments\Pages\ManageInvestments;
 use App\Models\Investment;
@@ -19,7 +20,8 @@ test('usuario pode criar investimento de renda fixa com liquidez diaria', functi
             'institution' => 'Nubank',
             'amount' => '1.500,00',
             'application_date' => '2026-07-01',
-            'cdi_rate' => 110,
+            'rate_type' => InvestmentRateType::Cdi->value,
+            'interest_rate' => 110,
             'daily_liquidity' => true,
             'maturity_date' => null,
         ])
@@ -33,9 +35,34 @@ test('usuario pode criar investimento de renda fixa com liquidez diaria', functi
         ->and($investment->institution)->toBe('Nubank')
         ->and($investment->amount)->toBe(150000)
         ->and($investment->application_date->toDateString())->toBe('2026-07-01')
-        ->and((float) $investment->cdi_rate)->toBe(110.0)
+        ->and($investment->rate_type)->toBe(InvestmentRateType::Cdi)
+        ->and((float) $investment->interest_rate)->toBe(110.0)
+        ->and($investment->formattedInterestRate())->toBe('110,00 % CDI')
         ->and($investment->daily_liquidity)->toBeTrue()
         ->and($investment->maturity_date)->toBeNull();
+});
+
+test('usuario pode criar investimento com rentabilidade prefixada', function () {
+    Livewire::test(ManageInvestments::class)
+        ->callAction('create', data: [
+            'type' => InvestmentType::FixedIncome->value,
+            'name' => 'CDB Prefixo',
+            'institution' => 'Itaú',
+            'amount' => '5.000,00',
+            'application_date' => '2026-07-01',
+            'rate_type' => InvestmentRateType::Prefixed->value,
+            'interest_rate' => 15,
+            'daily_liquidity' => false,
+            'maturity_date' => '2027-07-01',
+        ])
+        ->assertHasNoActionErrors();
+
+    $investment = Investment::query()->first();
+
+    expect($investment)->not->toBeNull()
+        ->and($investment->rate_type)->toBe(InvestmentRateType::Prefixed)
+        ->and((float) $investment->interest_rate)->toBe(15.0)
+        ->and($investment->formattedInterestRate())->toBe('15,00 % a.a.');
 });
 
 test('investimento sem liquidez diaria exige data de vencimento', function () {
@@ -46,7 +73,8 @@ test('investimento sem liquidez diaria exige data de vencimento', function () {
             'institution' => 'XP',
             'amount' => '2.000,00',
             'application_date' => '2026-07-01',
-            'cdi_rate' => 115,
+            'rate_type' => InvestmentRateType::Cdi->value,
+            'interest_rate' => 115,
             'daily_liquidity' => false,
             'maturity_date' => null,
         ])
@@ -61,7 +89,8 @@ test('usuario pode criar investimento sem liquidez diaria com vencimento', funct
             'institution' => 'BTG',
             'amount' => '3.000,00',
             'application_date' => '2026-07-01',
-            'cdi_rate' => 95,
+            'rate_type' => InvestmentRateType::Prefixed->value,
+            'interest_rate' => 12.5,
             'daily_liquidity' => false,
             'maturity_date' => '2028-07-01',
         ])
