@@ -57,6 +57,7 @@ class DashPanelProvider extends PanelProvider
             ->widgets([
                 Widgets\MonthProjectionWidget::class,
                 Widgets\TransactionsOverview::class,
+                Widgets\InvestmentsTotalWidget::class,
                 Widgets\MonthRevenue::class,
                 Widgets\CategoriesChart::class,
                 Widgets\TopCategoriesWidget::class,
