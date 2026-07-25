@@ -57,9 +57,6 @@ class TransactionResource extends Resource
                             ->dehydrateStateUsing(fn (?string $state): ?int => str($state)->replace(['.', ','], '')->toInteger()),
                         Forms\Components\DatePicker::make('due_date')
                             ->label('Data de vencimento')
-                            ->native(false)
-                            ->displayFormat('d/m/Y')
-                            ->format('Y-m-d')
                             ->required(),
                         Forms\Components\TextInput::make('description')
                             ->label('Descrição')
@@ -83,9 +80,6 @@ class TransactionResource extends Resource
 
                         Forms\Components\DatePicker::make('payment_date')
                             ->label('Data de pagamento')
-                            ->native(false)
-                            ->displayFormat('d/m/Y')
-                            ->format('Y-m-d')
                             ->helperText('Usada nos totais de receitas e despesas do mês em que o valor foi pago/recebido.')
                             ->visible(fn (Forms\Get $get): bool => (bool) $get('finished'))
                             ->required(fn (Forms\Get $get): bool => (bool) $get('finished'))
