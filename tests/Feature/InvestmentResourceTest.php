@@ -5,6 +5,7 @@ use App\Enums\InvestmentType;
 use App\Filament\Resources\Investments\Pages\ManageInvestments;
 use App\Models\Investment;
 use App\Models\User;
+use Illuminate\Validation\ValidationException;
 use Livewire\Livewire;
 
 beforeEach(function () {
@@ -114,11 +115,56 @@ test('soma dos valores aplicados considera todos os investimentos do usuario', f
 
 test('aba de renda fixa filtra apenas investimentos de renda fixa', function () {
     Investment::factory()->for($this->user)->fixedIncome()->create(['name' => 'CDB']);
-    Investment::factory()->for($this->user)->variableIncome()->create(['name' => 'Ações PETR4']);
+    Investment::factory()->for($this->user)->variableIncome()->create();
 
     Livewire::test(ManageInvestments::class)
         ->assertCanSeeTableRecords(Investment::query()->get())
         ->set('activeTab', InvestmentType::FixedIncome->value)
         ->assertCanSeeTableRecords(Investment::query()->fixedIncome()->get())
         ->assertCanNotSeeTableRecords(Investment::query()->variableIncome()->get());
+});
+
+test('renda variavel pode ser definida apenas com valor aplicado', function () {
+    Livewire::test(ManageInvestments::class)
+        ->set('activeTab', InvestmentType::VariableIncome->value)
+        ->callAction('createVariableIncome', data: [
+            'amount' => '10.000,00',
+        ])
+        ->assertHasNoActionErrors();
+
+    $investment = Investment::query()->first();
+
+    expect($investment)->not->toBeNull()
+        ->and($investment->type)->toBe(InvestmentType::VariableIncome)
+        ->and($investment->name)->toBe(Investment::VARIABLE_INCOME_NAME)
+        ->and($investment->amount)->toBe(1000000)
+        ->and($investment->institution)->toBeNull()
+        ->and($investment->application_date)->toBeNull()
+        ->and($investment->interest_rate)->toBeNull()
+        ->and($investment->formattedInterestRate())->toBe('—');
+});
+
+test('renda variavel e unica e pode ser atualizada', function () {
+    $existing = Investment::factory()->for($this->user)->variableIncome()->create([
+        'amount' => 100000,
+    ]);
+
+    Livewire::test(ManageInvestments::class)
+        ->set('activeTab', InvestmentType::VariableIncome->value)
+        ->callAction('updateVariableIncome', data: [
+            'amount' => '2.500,00',
+        ])
+        ->assertHasNoActionErrors();
+
+    expect(Investment::query()->variableIncome()->count())->toBe(1)
+        ->and($existing->fresh()->amount)->toBe(250000);
+});
+
+test('nao permite criar segunda renda variavel', function () {
+    Investment::factory()->for($this->user)->variableIncome()->create([
+        'amount' => 100000,
+    ]);
+
+    expect(fn () => Investment::query()->create(Investment::variableIncomeAttributes(200000)))
+        ->toThrow(ValidationException::class);
 });
