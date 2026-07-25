@@ -34,7 +34,7 @@ class InvestmentsTotalWidget extends BaseWidget
             Stat::make(InvestmentType::FixedIncome->getLabel(), $this->formatCurrency($fixedIncomeTotal))
                 ->icon(InvestmentType::FixedIncome->getIcon())
                 ->color('success')
-                ->description('Soma da renda fixa'),
+                ->description('Soma da renda fixa (sem contar juros)'),
             Stat::make(InvestmentType::VariableIncome->getLabel(), $this->formatCurrency($variableIncomeTotal))
                 ->icon(InvestmentType::VariableIncome->getIcon())
                 ->color('primary')
