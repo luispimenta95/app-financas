@@ -16,8 +16,9 @@ return new class extends Migration
             $table->string('type')->default('fixed_income')->after('user_id');
             $table->string('institution')->nullable()->after('name');
             $table->date('application_date')->nullable()->after('amount');
-            $table->decimal('cdi_rate', 8, 2)->nullable()->after('application_date');
-            $table->boolean('daily_liquidity')->default(true)->after('cdi_rate');
+            $table->string('rate_type')->default('cdi')->after('application_date');
+            $table->decimal('interest_rate', 8, 2)->nullable()->after('rate_type');
+            $table->boolean('daily_liquidity')->default(true)->after('interest_rate');
             $table->date('maturity_date')->nullable()->after('daily_liquidity');
         });
     }
@@ -29,7 +30,8 @@ return new class extends Migration
                 'type',
                 'institution',
                 'application_date',
-                'cdi_rate',
+                'rate_type',
+                'interest_rate',
                 'daily_liquidity',
                 'maturity_date',
             ]);

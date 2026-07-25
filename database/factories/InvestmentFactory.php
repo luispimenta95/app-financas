@@ -2,6 +2,7 @@
 
 namespace Database\Factories;
 
+use App\Enums\InvestmentRateType;
 use App\Enums\InvestmentType;
 use App\Models\Investment;
 use App\Models\User;
@@ -17,6 +18,7 @@ class InvestmentFactory extends Factory
     public function definition(): array
     {
         $dailyLiquidity = fake()->boolean(70);
+        $rateType = fake()->randomElement([InvestmentRateType::Cdi, InvestmentRateType::Prefixed]);
 
         return [
             'user_id' => User::factory(),
@@ -25,7 +27,10 @@ class InvestmentFactory extends Factory
             'institution' => fake()->randomElement(['Nubank', 'XP', 'Itaú', 'BTG', 'Inter']),
             'amount' => fake()->numberBetween(10000, 5000000),
             'application_date' => fake()->dateTimeBetween('-2 years', 'now')->format('Y-m-d'),
-            'cdi_rate' => fake()->randomFloat(2, 90, 130),
+            'rate_type' => $rateType,
+            'interest_rate' => $rateType === InvestmentRateType::Cdi
+                ? fake()->randomFloat(2, 90, 130)
+                : fake()->randomFloat(2, 8, 18),
             'daily_liquidity' => $dailyLiquidity,
             'maturity_date' => $dailyLiquidity
                 ? null
@@ -44,9 +49,26 @@ class InvestmentFactory extends Factory
     {
         return $this->state(fn () => [
             'type' => InvestmentType::VariableIncome,
-            'cdi_rate' => null,
+            'rate_type' => InvestmentRateType::Cdi,
+            'interest_rate' => null,
             'daily_liquidity' => true,
             'maturity_date' => null,
+        ]);
+    }
+
+    public function cdi(float $rate = 100): static
+    {
+        return $this->state(fn () => [
+            'rate_type' => InvestmentRateType::Cdi,
+            'interest_rate' => $rate,
+        ]);
+    }
+
+    public function prefixed(float $rate = 15): static
+    {
+        return $this->state(fn () => [
+            'rate_type' => InvestmentRateType::Prefixed,
+            'interest_rate' => $rate,
         ]);
     }
 
