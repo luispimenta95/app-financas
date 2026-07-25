@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 #[ScopedBy([TenantScope::class])]
 class Investment extends Model
@@ -38,6 +39,11 @@ class Investment extends Model
             'daily_liquidity' => 'boolean',
             'maturity_date' => 'date',
         ];
+    }
+
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class);
     }
 
     public function scopeOfType(Builder $query, InvestmentType $type): Builder

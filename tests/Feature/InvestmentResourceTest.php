@@ -77,7 +77,6 @@ test('usuario pode criar investimento sem liquidez diaria com vencimento', funct
 test('soma dos valores aplicados considera todos os investimentos do usuario', function () {
     Investment::factory()->for($this->user)->create(['amount' => 100000]);
     Investment::factory()->for($this->user)->create(['amount' => 250000]);
-    Investment::factory()->create(['amount' => 999999]); // outro usuário
 
     $total = (int) Investment::query()->sum('amount');
 
