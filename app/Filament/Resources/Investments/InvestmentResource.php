@@ -161,6 +161,11 @@ class InvestmentResource extends Resource
                     ->date('d/m/Y')
                     ->placeholder('—')
                     ->sortable(),
+
+                TextColumn::make('updated_at')
+                    ->label('Atualizado em')
+                    ->dateTime('d/m/Y H:i')
+                    ->sortable(),
             ])
             ->defaultSort('application_date', 'desc')
             ->actions([
