@@ -70,6 +70,11 @@ class User extends Authenticatable implements FilamentUser, HasAvatar
         return $this->hasMany(Investment::class);
     }
 
+    public function investmentMilestones(): HasMany
+    {
+        return $this->hasMany(InvestmentMilestone::class);
+    }
+
     public function canAccessPanel(Panel $panel): bool
     {
         return true;
