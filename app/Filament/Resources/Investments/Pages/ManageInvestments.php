@@ -3,21 +3,28 @@
 namespace App\Filament\Resources\Investments\Pages;
 
 use App\Enums\InvestmentType;
+use App\Filament\Resources\Investments\Concerns\HasInvestmentAreaTabs;
 use App\Filament\Resources\Investments\InvestmentResource;
 use App\Models\Investment;
 use Filament\Actions;
 use Filament\Forms;
-use Filament\Resources\Components\Tab;
 use Filament\Resources\Pages\ManageRecords;
-use Illuminate\Database\Eloquent\Builder;
 use Leandrocfe\FilamentPtbrFormFields\Money;
 
 class ManageInvestments extends ManageRecords
 {
+    use HasInvestmentAreaTabs;
+
     protected static string $resource = InvestmentResource::class;
 
     public function updatedActiveTab(): void
     {
+        if ($this->activeTab === self::MARCOS_TAB) {
+            $this->redirectToMilestonesTab();
+
+            return;
+        }
+
         $this->cachedHeaderActions = [];
         $this->cacheHeaderActions();
     }
@@ -46,21 +53,7 @@ class ManageInvestments extends ManageRecords
 
     public function getTabs(): array
     {
-        $tabs = [
-            'all' => Tab::make()
-                ->label('Todos'),
-        ];
-
-        foreach (InvestmentType::cases() as $investmentType) {
-            $tabs[$investmentType->value] = Tab::make()
-                ->label($investmentType->getPluralLabel())
-                ->icon($investmentType->getIcon())
-                ->modifyQueryUsing(
-                    fn (Builder $query) => $query->where('type', $investmentType)
-                );
-        }
-
-        return $tabs;
+        return $this->investmentRecordsTabs();
     }
 
     protected function resolveEstimatedControlTab(): ?InvestmentType
