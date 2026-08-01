@@ -152,7 +152,7 @@ class InvestmentResource extends Resource
                     ->label('Liq. diária')
                     ->boolean()
                     ->alignCenter()
-                    ->getStateUsing(fn (Investment $record): ?bool => $record->type === InvestmentType::VariableIncome
+                    ->getStateUsing(fn (Investment $record): ?bool => $record->type?->isEstimatedControl()
                         ? null
                         : $record->daily_liquidity),
 
@@ -171,8 +171,8 @@ class InvestmentResource extends Resource
             ->actions([
                 Tables\Actions\EditAction::make()
                     ->mutateFormDataUsing(function (array $data, Investment $record): array {
-                        if ($record->type === InvestmentType::VariableIncome) {
-                            return Investment::variableIncomeAttributes((int) $data['amount']);
+                        if ($record->type?->isEstimatedControl()) {
+                            return Investment::estimatedControlAttributes($record->type, (int) $data['amount']);
                         }
 
                         if (($data['daily_liquidity'] ?? true) === true) {
@@ -214,7 +214,9 @@ class InvestmentResource extends Resource
             return $type === InvestmentType::FixedIncome;
         }
 
-        return InvestmentType::tryFrom((string) $type) !== InvestmentType::VariableIncome;
+        $resolvedType = InvestmentType::tryFrom((string) $type);
+
+        return ! ($resolvedType?->isEstimatedControl() ?? false);
     }
 
     private static function resolveRateType(mixed $rateType): InvestmentRateType

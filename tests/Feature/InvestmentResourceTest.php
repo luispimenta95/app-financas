@@ -178,3 +178,57 @@ test('nao permite criar segunda renda variavel', function () {
     expect(fn () => Investment::query()->create(Investment::variableIncomeAttributes(200000)))
         ->toThrow(ValidationException::class);
 });
+
+test('investimentos fora do brasil podem ser definidos apenas com valor estimado', function () {
+    Livewire::test(ManageInvestments::class)
+        ->set('activeTab', InvestmentType::Abroad->value)
+        ->callAction('createAbroad', data: [
+            'amount' => '8.500,00',
+        ])
+        ->assertHasNoActionErrors();
+
+    $investment = Investment::query()->first();
+
+    expect($investment)->not->toBeNull()
+        ->and($investment->type)->toBe(InvestmentType::Abroad)
+        ->and($investment->name)->toBe(Investment::ABROAD_NAME)
+        ->and($investment->amount)->toBe(850000)
+        ->and($investment->institution)->toBeNull()
+        ->and($investment->application_date)->toBeNull()
+        ->and($investment->interest_rate)->toBeNull()
+        ->and($investment->formattedInterestRate())->toBe('—');
+});
+
+test('investimentos fora do brasil sao unicos e podem ser atualizados', function () {
+    $existing = Investment::factory()->for($this->user)->abroad()->create([
+        'amount' => 100000,
+    ]);
+
+    Livewire::test(ManageInvestments::class)
+        ->set('activeTab', InvestmentType::Abroad->value)
+        ->callAction('updateAbroad', data: [
+            'amount' => '3.200,00',
+        ])
+        ->assertHasNoActionErrors();
+
+    expect(Investment::query()->abroad()->count())->toBe(1)
+        ->and($existing->fresh()->amount)->toBe(320000);
+});
+
+test('nao permite criar segundo controle fora do brasil', function () {
+    Investment::factory()->for($this->user)->abroad()->create([
+        'amount' => 100000,
+    ]);
+
+    expect(fn () => Investment::query()->create(Investment::abroadAttributes(200000)))
+        ->toThrow(ValidationException::class);
+});
+
+test('renda variavel e fora do brasil podem coexistir', function () {
+    Investment::factory()->for($this->user)->variableIncome()->create(['amount' => 100000]);
+    Investment::factory()->for($this->user)->abroad()->create(['amount' => 200000]);
+
+    expect(Investment::query()->variableIncome()->count())->toBe(1)
+        ->and(Investment::query()->abroad()->count())->toBe(1)
+        ->and((int) Investment::query()->sum('amount'))->toBe(300000);
+});

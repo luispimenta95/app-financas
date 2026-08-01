@@ -21,6 +21,8 @@ class Investment extends Model
 
     public const VARIABLE_INCOME_NAME = 'Renda Variável';
 
+    public const ABROAD_NAME = 'Fora do Brasil';
+
     protected $fillable = [
         'user_id',
         'type',
@@ -50,12 +52,12 @@ class Investment extends Model
     protected static function booted(): void
     {
         static::creating(function (Investment $investment): void {
-            if ($investment->type !== InvestmentType::VariableIncome) {
+            if (! $investment->type?->isEstimatedControl()) {
                 return;
             }
 
             $alreadyExists = static::query()
-                ->where('type', InvestmentType::VariableIncome)
+                ->where('type', $investment->type)
                 ->when(
                     filled($investment->user_id),
                     fn (Builder $query) => $query->where('user_id', $investment->user_id),
@@ -63,8 +65,13 @@ class Investment extends Model
                 ->exists();
 
             if ($alreadyExists) {
+                $message = match ($investment->type) {
+                    InvestmentType::Abroad => 'Já existe um controle de investimentos fora do Brasil. Atualize o valor existente.',
+                    default => 'Já existe um controle de renda variável. Atualize o valor existente.',
+                };
+
                 throw ValidationException::withMessages([
-                    'amount' => 'Já existe um controle de renda variável. Atualize o valor existente.',
+                    'amount' => $message,
                 ]);
             }
         });
@@ -80,9 +87,30 @@ class Investment extends Model
      */
     public static function variableIncomeAttributes(int $amount): array
     {
+        return self::estimatedControlAttributes(InvestmentType::VariableIncome, $amount);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public static function abroadAttributes(int $amount): array
+    {
+        return self::estimatedControlAttributes(InvestmentType::Abroad, $amount);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public static function estimatedControlAttributes(InvestmentType $type, int $amount): array
+    {
+        $name = match ($type) {
+            InvestmentType::Abroad => self::ABROAD_NAME,
+            default => self::VARIABLE_INCOME_NAME,
+        };
+
         return [
-            'type' => InvestmentType::VariableIncome,
-            'name' => self::VARIABLE_INCOME_NAME,
+            'type' => $type,
+            'name' => $name,
             'institution' => null,
             'amount' => $amount,
             'application_date' => null,
@@ -95,7 +123,7 @@ class Investment extends Model
 
     public function formattedInterestRate(): string
     {
-        if ($this->type === InvestmentType::VariableIncome || blank($this->interest_rate)) {
+        if ($this->type?->isEstimatedControl() || blank($this->interest_rate)) {
             return '—';
         }
 
@@ -115,5 +143,10 @@ class Investment extends Model
     public function scopeVariableIncome(Builder $query): Builder
     {
         return $query->ofType(InvestmentType::VariableIncome);
+    }
+
+    public function scopeAbroad(Builder $query): Builder
+    {
+        return $query->ofType(InvestmentType::Abroad);
     }
 }

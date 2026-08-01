@@ -24,8 +24,10 @@ class ManageInvestments extends ManageRecords
 
     protected function getHeaderActions(): array
     {
-        if ($this->isVariableIncomeTab()) {
-            return [$this->getVariableIncomeAction()];
+        $estimatedType = $this->resolveEstimatedControlTab();
+
+        if ($estimatedType instanceof InvestmentType) {
+            return [$this->getEstimatedControlAction($estimatedType)];
         }
 
         return [
@@ -61,25 +63,29 @@ class ManageInvestments extends ManageRecords
         return $tabs;
     }
 
-    protected function isVariableIncomeTab(): bool
+    protected function resolveEstimatedControlTab(): ?InvestmentType
     {
-        return $this->activeTab === InvestmentType::VariableIncome->value;
+        $type = InvestmentType::tryFrom((string) $this->activeTab);
+
+        return $type?->isEstimatedControl() ? $type : null;
     }
 
-    protected function getVariableIncomeAction(): Actions\Action
+    protected function getEstimatedControlAction(InvestmentType $type): Actions\Action
     {
-        $existing = Investment::query()->variableIncome()->first();
+        $existing = Investment::query()->ofType($type)->first();
+        $label = $type->getLabel();
+        $amountNoun = $type === InvestmentType::Abroad ? 'valor estimado' : 'valor aplicado';
 
         if ($existing instanceof Investment) {
-            return Actions\Action::make('updateVariableIncome')
+            return Actions\Action::make('update'.$type->name)
                 ->label('Atualizar valor')
                 ->icon('heroicon-m-pencil-square')
-                ->modalHeading('Atualizar renda variável')
-                ->modalDescription('Controle parcial: informe apenas o valor aplicado atual.')
+                ->modalHeading("Atualizar {$label}")
+                ->modalDescription("Controle parcial: informe apenas o {$amountNoun} atual.")
                 ->fillForm([
                     'amount' => $existing->amount,
                 ])
-                ->form($this->getVariableIncomeFormSchema())
+                ->form($this->getEstimatedControlFormSchema($type))
                 ->action(function (array $data) use ($existing): void {
                     $existing->update([
                         'amount' => $data['amount'],
@@ -87,23 +93,27 @@ class ManageInvestments extends ManageRecords
                 });
         }
 
-        return Actions\CreateAction::make('createVariableIncome')
+        return Actions\CreateAction::make('create'.$type->name)
             ->label('Definir valor')
             ->icon('heroicon-m-plus')
-            ->modalHeading('Definir renda variável')
-            ->modalDescription('Controle parcial: informe apenas o valor aplicado.')
-            ->form($this->getVariableIncomeFormSchema())
-            ->mutateFormDataUsing(fn (array $data): array => Investment::variableIncomeAttributes($data['amount']));
+            ->modalHeading("Definir {$label}")
+            ->modalDescription("Controle parcial: informe apenas o {$amountNoun}.")
+            ->form($this->getEstimatedControlFormSchema($type))
+            ->mutateFormDataUsing(
+                fn (array $data): array => Investment::estimatedControlAttributes($type, $data['amount'])
+            );
     }
 
     /**
      * @return array<int, Forms\Components\Component>
      */
-    protected function getVariableIncomeFormSchema(): array
+    protected function getEstimatedControlFormSchema(InvestmentType $type): array
     {
+        $amountLabel = $type === InvestmentType::Abroad ? 'Valor estimado' : 'Valor aplicado';
+
         return [
             Money::make('amount')
-                ->label('Valor aplicado')
+                ->label($amountLabel)
                 ->required()
                 ->formatStateUsing(fn (?int $state) => number_format(($state ?? 0) / 100, 2, ',', '.'))
                 ->dehydrateStateUsing(fn (?string $state): ?int => str((string) $state)->replace(['.', ','], '')->toInteger()),

@@ -11,12 +11,14 @@ enum InvestmentType: string implements HasColor, HasIcon, HasLabel
 {
     case FixedIncome = 'fixed_income';
     case VariableIncome = 'variable_income';
+    case Abroad = 'abroad';
 
     public function getLabel(): ?string
     {
         return match ($this) {
             self::FixedIncome => 'Renda Fixa',
             self::VariableIncome => 'Renda Variável',
+            self::Abroad => 'Fora do Brasil',
         };
     }
 
@@ -25,6 +27,7 @@ enum InvestmentType: string implements HasColor, HasIcon, HasLabel
         return match ($this) {
             self::FixedIncome => 'Renda Fixa',
             self::VariableIncome => 'Renda Variável',
+            self::Abroad => 'Fora do Brasil',
         };
     }
 
@@ -33,6 +36,7 @@ enum InvestmentType: string implements HasColor, HasIcon, HasLabel
         return match ($this) {
             self::FixedIncome => 'heroicon-m-building-library',
             self::VariableIncome => 'heroicon-m-chart-bar',
+            self::Abroad => 'heroicon-m-globe-alt',
         };
     }
 
@@ -41,6 +45,15 @@ enum InvestmentType: string implements HasColor, HasIcon, HasLabel
         return match ($this) {
             self::FixedIncome => Color::Emerald,
             self::VariableIncome => Color::Sky,
+            self::Abroad => Color::Amber,
+        };
+    }
+
+    public function isEstimatedControl(): bool
+    {
+        return match ($this) {
+            self::VariableIncome, self::Abroad => true,
+            self::FixedIncome => false,
         };
     }
 }
