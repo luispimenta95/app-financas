@@ -25,6 +25,9 @@ class InvestmentsTotalWidget extends BaseWidget
         $variableIncomeTotal = (int) Investment::query()
             ->variableIncome()
             ->sum('amount');
+        $abroadTotal = (int) Investment::query()
+            ->abroad()
+            ->sum('amount');
 
         return [
             Stat::make('Total investido', $this->formatCurrency($total))
@@ -39,6 +42,10 @@ class InvestmentsTotalWidget extends BaseWidget
                 ->icon(InvestmentType::VariableIncome->getIcon())
                 ->color('primary')
                 ->description('Controle parcial do valor aplicado'),
+            Stat::make(InvestmentType::Abroad->getLabel(), $this->formatCurrency($abroadTotal))
+                ->icon(InvestmentType::Abroad->getIcon())
+                ->color('warning')
+                ->description('Controle parcial do valor estimado'),
         ];
     }
 

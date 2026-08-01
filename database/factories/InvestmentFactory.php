@@ -47,16 +47,16 @@ class InvestmentFactory extends Factory
 
     public function variableIncome(): static
     {
-        return $this->state(fn () => [
-            'type' => InvestmentType::VariableIncome,
-            'name' => Investment::VARIABLE_INCOME_NAME,
-            'institution' => null,
-            'application_date' => null,
-            'rate_type' => InvestmentRateType::Cdi,
-            'interest_rate' => null,
-            'daily_liquidity' => true,
-            'maturity_date' => null,
-        ]);
+        return $this->state(fn () => Investment::variableIncomeAttributes(
+            fake()->numberBetween(10000, 5000000)
+        ));
+    }
+
+    public function abroad(): static
+    {
+        return $this->state(fn () => Investment::abroadAttributes(
+            fake()->numberBetween(10000, 5000000)
+        ));
     }
 
     public function cdi(float $rate = 100): static
