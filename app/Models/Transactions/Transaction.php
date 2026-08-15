@@ -76,6 +76,31 @@ class Transaction extends Model
     }
 
     /**
+     * Pesquisa usada na listagem: descrição, categoria ou conta.
+     */
+    public function scopeSearchTerm(Builder $query, mixed $search): Builder
+    {
+        $term = trim((string) $search);
+
+        if ($term === '') {
+            return $query;
+        }
+
+        $like = '%' . addcslashes($term, '%_\\') . '%';
+
+        return $query->where(function (Builder $searchQuery) use ($like): void {
+            $searchQuery
+                ->where('description', 'like', $like)
+                ->orWhereHas('category', function (Builder $categoryQuery) use ($like): void {
+                    $categoryQuery->where('name', 'like', $like);
+                })
+                ->orWhereHas('account', function (Builder $accountQuery) use ($like): void {
+                    $accountQuery->where('name', 'like', $like);
+                });
+        });
+    }
+
+    /**
      * Lista registros pelo mês de vencimento (due_date, com fallback para date).
      */
     public function scopeForDuePeriod(Builder $query, mixed $startDate, mixed $endDate): Builder

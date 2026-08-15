@@ -15,6 +15,7 @@ use Filament\Support\Colors\Color;
 use Filament\Support\Enums\FontWeight;
 use Filament\Support\Enums\IconPosition;
 use Filament\Tables;
+use Filament\Tables\Columns\Summarizers\Sum;
 use Filament\Tables\Columns\TextColumn\TextColumnSize;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
@@ -80,7 +81,7 @@ class TransactionResource extends Resource
 
                         Forms\Components\DatePicker::make('payment_date')
                             ->label('Data de pagamento')
-                            ->helperText('Usada nos totais de receitas e despesas do mês em que o valor foi pago/recebido.')
+                            ->helperText('Usada no saldo do mês em que o valor foi pago/recebido. Receitas e despesas da listagem usam o mês de vencimento.')
                             ->visible(fn (Forms\Get $get): bool => (bool) $get('finished'))
                             ->required(fn (Forms\Get $get): bool => (bool) $get('finished'))
                             ->default(fn (Forms\Get $get): ?string => $get('due_date')),
@@ -432,7 +433,12 @@ class TransactionResource extends Resource
                     TransactionType::Income => 'success',
                     TransactionType::Expense => 'danger',
                     default => 'gray',
-                }),
+                })
+                ->summarize(
+                    Sum::make()
+                        ->label('Total')
+                        ->formatStateUsing(fn ($state): string => 'R$ ' . number_format(((int) $state) / 100, 2, ',', '.'))
+                ),
             Tables\Columns\TextColumn::make('created_at')
                 ->label('Criado em')
                 ->dateTime('d/m/Y H:i')
