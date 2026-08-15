@@ -81,7 +81,7 @@ class TransactionResource extends Resource
 
                         Forms\Components\DatePicker::make('payment_date')
                             ->label('Data de pagamento')
-                            ->helperText('Usada no saldo do mês em que o valor foi pago/recebido. Receitas e despesas da listagem usam o mês de vencimento.')
+                            ->helperText('Usada nos widgets de receitas, despesas e saldo. A listagem e o somatório usam o mês de vencimento.')
                             ->visible(fn (Forms\Get $get): bool => (bool) $get('finished'))
                             ->required(fn (Forms\Get $get): bool => (bool) $get('finished'))
                             ->default(fn (Forms\Get $get): ?string => $get('due_date')),

@@ -86,7 +86,7 @@ function overviewStatValues(object $component): array
         ->all();
 }
 
-test('pesquisa de gastos com cartao em agosto soma a fatura completa pelo vencimento', function () {
+test('widget de receitas e despesas em agosto usa a data de pagamento', function () {
     $component = Livewire::test(TransactionsOverview::class, [
         'tableFilters' => [
             'date' => ['monthReference' => '2026-08'],
@@ -97,25 +97,11 @@ test('pesquisa de gastos com cartao em agosto soma a fatura completa pelo vencim
     $stats = overviewStatValues($component);
 
     expect($stats['Receitas'])->toBe('R$ 0,00')
-        ->and($stats['Despesas'])->toBe('R$ 2.250,00')
+        ->and($stats['Despesas'])->toBe('R$ 1.250,00')
         ->and($stats['Saldo'])->toBe('R$ -1.250,00');
 });
 
-test('filtro de categoria cartao em agosto tambem soma os dois pagamentos da fatura', function () {
-    $component = Livewire::test(TransactionsOverview::class, [
-        'tableFilters' => [
-            'date' => ['monthReference' => '2026-08'],
-            'category_id' => ['values' => [$this->cardCategory->id]],
-        ],
-    ]);
-
-    $stats = overviewStatValues($component);
-
-    expect($stats['Despesas'])->toBe('R$ 2.250,00')
-        ->and($stats['Saldo'])->toBe('R$ -1.250,00');
-});
-
-test('pagamento adiantado debita o saldo do mes em que foi feito', function () {
+test('widget em julho debita o adiantamento no mes do pagamento', function () {
     $july = Livewire::test(TransactionsOverview::class, [
         'tableFilters' => [
             'date' => ['monthReference' => '2026-07'],
@@ -125,23 +111,43 @@ test('pagamento adiantado debita o saldo do mes em que foi feito', function () {
 
     $julyStats = overviewStatValues($july);
 
-    expect($julyStats['Despesas'])->toBe('R$ 0,00')
+    expect($julyStats['Despesas'])->toBe('R$ 1.000,00')
         ->and($julyStats['Saldo'])->toBe('R$ -1.000,00');
 });
 
-test('lista de agosto encontra os dois pagamentos da fatura ao pesquisar cartao', function () {
+test('lista de agosto soma os dois pagamentos da fatura pelo vencimento', function () {
     $component = Livewire::test(ListTransactions::class)
         ->set('tableFilters.date.monthReference', '2026-08')
         ->set('tableSearch', 'cartão')
         ->assertSuccessful();
 
-    $descriptions = $component->instance()
-        ->getFilteredTableQuery()
-        ->pluck('description')
-        ->all();
+    $query = $component->instance()->getFilteredTableQuery();
+    $descriptions = (clone $query)->pluck('description')->all();
 
     expect($descriptions)->toContain('Adiantamento fatura cartão', 'Pagamento restante fatura cartão')
-        ->and($descriptions)->not->toContain('Mercado');
+        ->and($descriptions)->not->toContain('Mercado')
+        ->and((int) $query->sum('amount'))->toBe(225000);
+});
+
+test('filtro de categoria cartao soma a fatura na listagem e o pagamento no widget', function () {
+    $list = Livewire::test(ListTransactions::class)
+        ->set('tableFilters.date.monthReference', '2026-08')
+        ->set('tableFilters.category_id.values', [$this->cardCategory->id])
+        ->assertSuccessful();
+
+    expect((int) $list->instance()->getFilteredTableQuery()->sum('amount'))->toBe(225000);
+
+    $widget = Livewire::test(TransactionsOverview::class, [
+        'tableFilters' => [
+            'date' => ['monthReference' => '2026-08'],
+            'category_id' => ['values' => [$this->cardCategory->id]],
+        ],
+    ]);
+
+    $stats = overviewStatValues($widget);
+
+    expect($stats['Despesas'])->toBe('R$ 1.250,00')
+        ->and($stats['Saldo'])->toBe('R$ -1.250,00');
 });
 
 test('principais categorias em agosto consideram a fatura pelo vencimento', function () {
