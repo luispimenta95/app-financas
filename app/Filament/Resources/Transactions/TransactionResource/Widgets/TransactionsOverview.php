@@ -17,34 +17,34 @@ class TransactionsOverview extends BaseWidget
     protected function getStats(): array
     {
         [$startDate, $endDate] = $this->resolveDateRangeFromTableFilter();
-        $categoriesIds = $this->tableFilters['category_id']['values'] ?? [];
-        $accountsIds = $this->tableFilters['account_id']['values'] ?? [];
-        $preview = $this->tableFilters['finished']['isActive'] ?? false;
+        $categoriesIds = data_get($this->tableFilters, 'category_id.values', []);
+        $accountsIds = data_get($this->tableFilters, 'account_id.values', []);
+        $onlyFinished = (bool) data_get($this->tableFilters, 'finished.isActive', false);
 
         return [
             Stat::make(
                 label: 'Receitas',
-                value: $this->formatCurrency($this->getIncomes($startDate, $endDate, $preview, $categoriesIds, $accountsIds))
+                value: $this->formatCurrency($this->getIncomes($startDate, $endDate, $onlyFinished, $categoriesIds, $accountsIds))
             )->icon('heroicon-m-arrow-trending-up'),
 
             Stat::make(
                 label: 'Despesas',
-                value: $this->formatCurrency($this->getExpenses($startDate, $endDate, $preview, $categoriesIds, $accountsIds))
+                value: $this->formatCurrency($this->getExpenses($startDate, $endDate, $onlyFinished, $categoriesIds, $accountsIds))
             )->icon('heroicon-m-arrow-trending-down'),
 
             Stat::make(
                 label: 'Saldo',
-                value: $this->formatCurrency($this->getCurrentBalance($startDate, $endDate, $preview, $categoriesIds, $accountsIds))
+                value: $this->formatCurrency($this->getCurrentBalance($startDate, $endDate, $categoriesIds, $accountsIds))
             )->icon('heroicon-m-building-library'),
         ];
     }
 
     private function resolveDateRangeFromTableFilter(): array
     {
-        $monthReference = $this->tableFilters['date']['monthReference'] ?? null;
+        $monthReference = data_get($this->tableFilters, 'date.monthReference');
 
-        if (blank($monthReference) && filled($this->tableFilters['date']['startDate'] ?? null)) {
-            $monthReference = Carbon::parse($this->tableFilters['date']['startDate'])->format('Y-m');
+        if (blank($monthReference) && filled(data_get($this->tableFilters, 'date.startDate'))) {
+            $monthReference = Carbon::parse(data_get($this->tableFilters, 'date.startDate'))->format('Y-m');
         }
 
         if (blank($monthReference)) {
@@ -67,12 +67,45 @@ class TransactionsOverview extends BaseWidget
         ];
     }
 
-    private function getTransactions(?string $startDate, ?string $endDate, bool $preview, array $categoriesIds, array $accountsIds, TransactionType $transactionType): Builder
-    {
-        $query = Transaction::where('transaction_type', $transactionType)
+    private function getListedTransactions(
+        ?string $startDate,
+        ?string $endDate,
+        bool $onlyFinished,
+        array $categoriesIds,
+        array $accountsIds,
+        TransactionType $transactionType,
+    ): Builder {
+        $query = Transaction::query()
+            ->where('transaction_type', $transactionType)
             ->withoutInvestments()
-            ->forCashFlowPeriod($startDate, $endDate, $preview);
+            ->forDuePeriod($startDate, $endDate)
+            ->searchTerm($this->tableSearch);
 
+        if ($onlyFinished) {
+            $query->where('finished', true);
+        }
+
+        return $this->constrainByFilters($query, $categoriesIds, $accountsIds);
+    }
+
+    private function getCashFlowTransactions(
+        ?string $startDate,
+        ?string $endDate,
+        array $categoriesIds,
+        array $accountsIds,
+        TransactionType $transactionType,
+    ): Builder {
+        $query = Transaction::query()
+            ->where('transaction_type', $transactionType)
+            ->withoutInvestments()
+            ->forCashFlowPeriod($startDate, $endDate)
+            ->searchTerm($this->tableSearch);
+
+        return $this->constrainByFilters($query, $categoriesIds, $accountsIds);
+    }
+
+    private function constrainByFilters(Builder $query, array $categoriesIds, array $accountsIds): Builder
+    {
         if (!empty($categoriesIds)) {
             $query->whereIn('category_id', $categoriesIds);
         }
@@ -84,42 +117,53 @@ class TransactionsOverview extends BaseWidget
         return $query;
     }
 
-    private function getIncomes($startDate, $endDate, bool $preview, array $categoriesIds, array $accountsIds)
+    private function getIncomes($startDate, $endDate, bool $onlyFinished, array $categoriesIds, array $accountsIds)
     {
         if ($this->activeTab === TransactionType::Expense->value) {
             return 0;
         }
 
-        return $this->getTransactions($startDate, $endDate, $preview, $categoriesIds, $accountsIds, TransactionType::Income)
+        return (int) $this->getListedTransactions($startDate, $endDate, $onlyFinished, $categoriesIds, $accountsIds, TransactionType::Income)
             ->sum('amount');
     }
 
-    private function getExpenses($startDate, $endDate, bool $preview, array $categoriesIds, array $accountsIds)
+    private function getExpenses($startDate, $endDate, bool $onlyFinished, array $categoriesIds, array $accountsIds)
     {
         if ($this->activeTab === TransactionType::Income->value) {
             return 0;
         }
 
-        return $this->getTransactions($startDate, $endDate, $preview, $categoriesIds, $accountsIds, TransactionType::Expense)
+        return (int) $this->getListedTransactions($startDate, $endDate, $onlyFinished, $categoriesIds, $accountsIds, TransactionType::Expense)
             ->sum('amount');
     }
 
-    private function getCurrentBalance($startDate, $endDate, bool $preview, array $categoriesIds, array $accountsIds)
+    private function getCurrentBalance($startDate, $endDate, array $categoriesIds, array $accountsIds)
     {
-        return $this->getIncomes($startDate, $endDate, $preview, $categoriesIds, $accountsIds)
-            - $this->getExpenses($startDate, $endDate, $preview, $categoriesIds, $accountsIds)
-            - $this->getInvestmentBalanceImpact($startDate, $endDate, $preview, $categoriesIds, $accountsIds);
+        if ($this->activeTab === TransactionType::Expense->value) {
+            $income = 0;
+        } else {
+            $income = (int) $this->getCashFlowTransactions($startDate, $endDate, $categoriesIds, $accountsIds, TransactionType::Income)
+                ->sum('amount');
+        }
+
+        if ($this->activeTab === TransactionType::Income->value) {
+            $expense = 0;
+        } else {
+            $expense = (int) $this->getCashFlowTransactions($startDate, $endDate, $categoriesIds, $accountsIds, TransactionType::Expense)
+                ->sum('amount');
+        }
+
+        return $income - $expense - $this->getInvestmentBalanceImpact($startDate, $endDate, $categoriesIds, $accountsIds);
     }
 
     private function getInvestmentBalanceImpact(
         ?string $startDate,
         ?string $endDate,
-        bool $preview,
         array $categoriesIds,
         array $accountsIds,
     ): int {
-        $contributions = $this->sumInvestmentAmount($startDate, $endDate, $preview, $categoriesIds, $accountsIds, TransactionType::Expense);
-        $redemptions = $this->sumInvestmentAmount($startDate, $endDate, $preview, $categoriesIds, $accountsIds, TransactionType::Income);
+        $contributions = $this->sumInvestmentAmount($startDate, $endDate, $categoriesIds, $accountsIds, TransactionType::Expense);
+        $redemptions = $this->sumInvestmentAmount($startDate, $endDate, $categoriesIds, $accountsIds, TransactionType::Income);
 
         return $contributions - $redemptions;
     }
@@ -127,7 +171,6 @@ class TransactionsOverview extends BaseWidget
     private function sumInvestmentAmount(
         ?string $startDate,
         ?string $endDate,
-        bool $preview,
         array $categoriesIds,
         array $accountsIds,
         TransactionType $transactionType,
@@ -135,17 +178,10 @@ class TransactionsOverview extends BaseWidget
         $query = Transaction::query()
             ->onlyInvestments()
             ->where('transaction_type', $transactionType)
-            ->forCashFlowPeriod($startDate, $endDate, $preview);
+            ->forCashFlowPeriod($startDate, $endDate)
+            ->searchTerm($this->tableSearch);
 
-        if (!empty($categoriesIds)) {
-            $query->whereIn('category_id', $categoriesIds);
-        }
-
-        if (!empty($accountsIds)) {
-            $query->whereIn('account_id', $accountsIds);
-        }
-
-        return (int) $query->sum('amount');
+        return (int) $this->constrainByFilters($query, $categoriesIds, $accountsIds)->sum('amount');
     }
 
     private function formatCurrency(int $currency): string
