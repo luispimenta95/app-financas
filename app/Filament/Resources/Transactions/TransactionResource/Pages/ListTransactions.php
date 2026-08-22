@@ -90,20 +90,6 @@ class ListTransactions extends ListRecords
         $this->hasFocusedOnCurrentDate = true;
 
         $today = now()->toDateString();
-        $query = $this->getFilteredSortedTableQuery();
-
-        $recordsBeforeFocus = (clone $query)
-            ->whereRaw(Transaction::dueDateExpression() . ' < ?', [$today])
-            ->count();
-
-        $totalRecords = (clone $query)->count();
-        $perPage = $this->getTableRecordsPerPage() ?? 25;
-
-        $page = static::resolveFocusPage($recordsBeforeFocus, $perPage, $totalRecords);
-
-        if ($page !== $this->getTablePage()) {
-            $this->setPage($page, $this->getTablePaginationPageName());
-        }
 
         $focusDateLabel = $this->resolveFocusDateLabel($today);
 
@@ -192,25 +178,5 @@ class ListTransactions extends ListRecords
                 requestAnimationFrame(() => requestAnimationFrame(scrollToGroup));
             })()
         JS);
-    }
-
-    /**
-     * Calcula a página da tabela em que a primeira transação >= hoje aparece.
-     */
-    public static function resolveFocusPage(int $recordsBeforeFocus, int|string $perPage, int $totalRecords): int
-    {
-        if ($totalRecords <= 0) {
-            return 1;
-        }
-
-        if ($perPage === 'all' || (int) $perPage <= 0) {
-            return 1;
-        }
-
-        $perPage = (int) $perPage;
-        $page = intdiv(max(0, $recordsBeforeFocus), $perPage) + 1;
-        $lastPage = max(1, (int) ceil($totalRecords / $perPage));
-
-        return min($page, $lastPage);
     }
 }
