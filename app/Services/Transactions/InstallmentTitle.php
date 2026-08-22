@@ -34,4 +34,12 @@ class InstallmentTitle
             ? self::label($number, $total)
             : $base . ' - ' . self::label($number, $total);
     }
+
+    public static function withoutLegacyTransactionSuffix(?string $description): string
+    {
+        $description = trim((string) $description);
+        $cleaned = preg_replace('/ - Transação \d+ de \d+/u', '', $description);
+
+        return trim((string) $cleaned);
+    }
 }

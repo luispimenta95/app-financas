@@ -26,9 +26,8 @@ test('formatar de novo nao duplica o sufixo', function () {
         ->toBe('Celular Sabrina - Parcela 2 de 10');
 });
 
-test('titulo nunca termina com transacao x de y', function () {
-    expect(InstallmentTitle::format('Celular Sabrina - Parcela 2 de 10', 2, 10))
-        ->toBe('Celular Sabrina - Parcela 2 de 10')
-        ->and(InstallmentTitle::baseDescription('Celular Sabrina - Parcela 2 de 10 - Transação 2 de 10'))
-        ->toBe('Celular Sabrina');
+test('listagem nao mostra transacao x de y junto da parcela', function () {
+    expect(InstallmentTitle::withoutLegacyTransactionSuffix(
+        'Celular Sabrina - Parcela 2 de 10 - Transação 2 de 10'
+    ))->toBe('Celular Sabrina - Parcela 2 de 10');
 });

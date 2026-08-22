@@ -224,15 +224,14 @@ class Transaction extends Model
 
     public function displayTitle(): string
     {
-        if ($this->isInstallment()) {
-            return InstallmentTitle::format(
-                $this->description,
-                (int) $this->installment_number,
-                (int) $this->installment_total,
-            );
-        }
+        $number = (int) $this->installment_number;
+        $total = (int) $this->installment_total;
 
-        return (string) $this->description;
+        $title = ($number > 0 && $total > 1)
+            ? InstallmentTitle::format($this->description, $number, $total)
+            : (string) $this->description;
+
+        return InstallmentTitle::withoutLegacyTransactionSuffix($title);
     }
 
     private static function normalizePeriodBoundary(mixed $value): ?string

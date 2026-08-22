@@ -61,6 +61,18 @@ test('parcela de varios meses numera o titulo como parcela x de y', function () 
         ->and($first->installmentLabel())->toBe('Parcela 1 de 3');
 });
 
+test('listagem mostra apenas parcela x de y mesmo com sufixo antigo na descricao', function () {
+    $transaction = createInstallmentTransaction([
+        'description' => 'Celular Sabrina - Parcela 2 de 10 - Transação 2 de 10',
+        'installment_number' => 2,
+        'installment_total' => 10,
+        'due_date' => '2026-08-17',
+        'date' => '2026-08-17',
+    ]);
+
+    expect($transaction->displayTitle())->toBe('Celular Sabrina - Parcela 2 de 10');
+});
+
 test('recorrencia comum nao recebe titulo de parcela', function () {
     $transaction = createInstallmentTransaction([
         'description' => 'Aluguel',
