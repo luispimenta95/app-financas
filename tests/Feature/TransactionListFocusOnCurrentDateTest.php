@@ -45,17 +45,7 @@ function createFocusTransaction(array $overrides = []): Transaction
     ], $overrides));
 }
 
-test('resolveFocusPage calcula a pagina da primeira transacao a partir de hoje', function () {
-    expect(ListTransactions::resolveFocusPage(0, 25, 40))->toBe(1)
-        ->and(ListTransactions::resolveFocusPage(24, 25, 40))->toBe(1)
-        ->and(ListTransactions::resolveFocusPage(25, 25, 40))->toBe(2)
-        ->and(ListTransactions::resolveFocusPage(30, 25, 40))->toBe(2)
-        ->and(ListTransactions::resolveFocusPage(40, 25, 40))->toBe(2)
-        ->and(ListTransactions::resolveFocusPage(10, 'all', 40))->toBe(1)
-        ->and(ListTransactions::resolveFocusPage(0, 25, 0))->toBe(1);
-});
-
-test('lista de transacoes abre na pagina com a data atual para frente', function () {
+test('lista de transacoes exibe todos os registros do filtro sem paginar', function () {
     Carbon::setTestNow(Carbon::parse('2026-07-14 10:00:00', 'America/Sao_Paulo'));
 
     foreach (range(1, 25) as $index) {
@@ -81,28 +71,27 @@ test('lista de transacoes abre na pagina com a data atual para frente', function
     $component = Livewire::test(ListTransactions::class)
         ->assertSuccessful();
 
-    expect($component->instance()->hasFocusedOnCurrentDate)->toBeTrue()
-        ->and($component->instance()->getTablePage())->toBe(2);
-
     $descriptions = $component->instance()
         ->getTableRecords()
         ->pluck('description')
         ->all();
 
-    expect($descriptions)->toContain('Hoje', 'Depois')
-        ->and($descriptions)->not->toContain('Antes 1');
+    expect($component->instance()->hasFocusedOnCurrentDate)->toBeTrue()
+        ->and($component->instance()->getTable()->isPaginated())->toBeFalse()
+        ->and($descriptions)->toContain('Hoje', 'Depois', 'Antes 1')
+        ->and($descriptions)->toHaveCount(27);
 
     Carbon::setTestNow();
 });
 
-test('lista nao força pagina quando o mes filtrado nao e o atual', function () {
+test('lista aplica o filtro de mes sem paginar', function () {
     Carbon::setTestNow(Carbon::parse('2026-07-14 10:00:00', 'America/Sao_Paulo'));
 
-    foreach (range(1, 30) as $day) {
+    foreach (range(1, 5) as $day) {
         createFocusTransaction([
             'description' => "Junho {$day}",
-            'date' => sprintf('2026-06-%02d', min($day, 30)),
-            'due_date' => sprintf('2026-06-%02d', min($day, 30)),
+            'date' => sprintf('2026-06-%02d', $day),
+            'due_date' => sprintf('2026-06-%02d', $day),
         ]);
     }
 
@@ -110,8 +99,8 @@ test('lista nao força pagina quando o mes filtrado nao e o atual', function () 
         ->set('tableFilters.date.monthReference', '2026-06')
         ->assertSuccessful();
 
-    // Após trocar o filtro, o foco é recalculado; mês passado não deve pular de página.
-    expect($component->instance()->getTablePage())->toBe(1);
+    expect($component->instance()->getTable()->isPaginated())->toBeFalse()
+        ->and($component->instance()->getTableRecords())->toHaveCount(5);
 
     Carbon::setTestNow();
 });

@@ -285,13 +285,7 @@ class TransactionResource extends Resource
                     ->label('Conta')
                     ->getTitleFromRecordUsing(fn (Transaction $record): ?string => $record->account?->name),
             ])
-            ->paginated([
-                25,
-                50,
-                100,
-                'all',
-            ])
-            ->defaultPaginationPageOption(25)
+            ->paginated(false)
             ->actionsAlignment('right')
             ->actions([
                 Tables\Actions\ViewAction::make()
