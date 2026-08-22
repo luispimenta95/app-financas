@@ -15,8 +15,8 @@ class InstallmentTitle
     {
         $description = trim((string) $description);
 
-        if ($description !== '' && preg_match(self::SUFFIX_PATTERN, $description, $matches)) {
-            return trim(substr($description, 0, -strlen($matches[0])));
+        while ($description !== '' && preg_match(self::SUFFIX_PATTERN, $description, $matches)) {
+            $description = trim(substr($description, 0, -strlen($matches[0])));
         }
 
         return $description;

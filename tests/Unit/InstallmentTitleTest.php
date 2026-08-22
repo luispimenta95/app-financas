@@ -21,5 +21,14 @@ test('formatar de novo nao duplica o sufixo', function () {
     expect(InstallmentTitle::format('Geladeira - Parcela 1 de 10', 2, 10))
         ->toBe('Geladeira - Parcela 2 de 10')
         ->and(InstallmentTitle::format('Geladeira - Transação 1 de 10', 2, 10))
-        ->toBe('Geladeira - Parcela 2 de 10');
+        ->toBe('Geladeira - Parcela 2 de 10')
+        ->and(InstallmentTitle::format('Celular Sabrina - Parcela 2 de 10 - Transação 2 de 10', 2, 10))
+        ->toBe('Celular Sabrina - Parcela 2 de 10');
+});
+
+test('titulo nunca termina com transacao x de y', function () {
+    expect(InstallmentTitle::format('Celular Sabrina - Parcela 2 de 10', 2, 10))
+        ->toBe('Celular Sabrina - Parcela 2 de 10')
+        ->and(InstallmentTitle::baseDescription('Celular Sabrina - Parcela 2 de 10 - Transação 2 de 10'))
+        ->toBe('Celular Sabrina');
 });
