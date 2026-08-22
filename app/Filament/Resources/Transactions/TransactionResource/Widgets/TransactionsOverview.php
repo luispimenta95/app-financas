@@ -47,16 +47,14 @@ class TransactionsOverview extends BaseWidget
             $monthReference = Carbon::parse(data_get($this->tableFilters, 'date.startDate'))->format('Y-m');
         }
 
-        if (blank($monthReference)) {
-            $monthReference = now()->format('Y-m');
-        }
-
-        if ($monthReference === 'all') {
+        // Sem mês explícito (incluindo "Todos") o widget acompanha a listagem e
+        // não cai no mês atual — senão a pesquisa por texto ignora outros meses.
+        if (blank($monthReference) || $monthReference === 'all') {
             return [null, null];
         }
 
         if (!preg_match('/^(\d{4})-(\d{2})$/', (string) $monthReference, $matches)) {
-            return [now()->startOfMonth()->toDateString(), now()->endOfMonth()->toDateString()];
+            return [null, null];
         }
 
         $baseDate = Carbon::createFromDate((int) $matches[1], (int) $matches[2], 1);

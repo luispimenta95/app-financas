@@ -44,6 +44,37 @@ class ListTransactions extends ListRecords
         $this->hasFocusedOnCurrentDate = false;
     }
 
+    public function updatedTableSearch(): void
+    {
+        parent::updatedTableSearch();
+
+        $this->useAllMonthsWhenSearchingWithoutExplicitDate();
+    }
+
+    /**
+     * Pesquisa por texto sem um mês escolhido (ou com o padrão do mês atual)
+     * deve olhar todos os períodos, alinhada aos widgets.
+     */
+    protected function useAllMonthsWhenSearchingWithoutExplicitDate(): void
+    {
+        if (blank(trim((string) $this->tableSearch))) {
+            return;
+        }
+
+        $monthReference = data_get($this->tableFilters, 'date.monthReference');
+
+        if ($monthReference === 'all') {
+            return;
+        }
+
+        if (filled($monthReference) && $monthReference !== now()->format('Y-m')) {
+            return;
+        }
+
+        data_set($this->tableFilters, 'date.monthReference', 'all');
+        $this->hasFocusedOnCurrentDate = false;
+    }
+
     public function updatedTableGrouping(): void
     {
         $this->hasFocusedOnCurrentDate = false;
