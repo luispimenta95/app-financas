@@ -1,65 +1,61 @@
--- Numera apenas PARCELAS já salvas (is_installment = 1) em grupos de
--- 2 ou mais meses, com o título "Transação X de Y".
--- Recorrências comuns (aluguel, assinatura, conta de luz) não são alteradas.
+-- Atualiza APENAS as 10 parcelas "Celular Sabrina".
+-- Ordem pelo vencimento: Transação 1 de 10 ... Transação 10 de 10.
 --
--- Pré-requisito: rode a migration
---   2026_08_22_140000_add_installment_columns_to_transactions_table
---
--- Antes de rodar, marque as transações que são parcela:
---   UPDATE transactions SET is_installment = 1
---   WHERE recurrence = 1 AND description IN ('Geladeira', 'Notebook');
---
--- Uso:
---   mysql -u USER -p DATABASE < database/scripts/backfill_transaction_installments.sql
---
--- O script é idempotente: pode ser executado de novo sem duplicar o sufixo.
+-- Este UPDATE usa só colunas já existentes e pode ser colado no MySQL agora.
+-- Idempotente: pode rodar de novo sem duplicar o sufixo.
 
 START TRANSACTION;
 
 UPDATE transactions AS t
 INNER JOIN (
     SELECT
-        numbered.id,
-        numbered.installment_number,
-        numbered.installment_total,
-        numbered.base_description
-    FROM (
-        SELECT
-            grouped.id,
-            grouped.base_description,
-            ROW_NUMBER() OVER (
-                PARTITION BY grouped.user_id, grouped.base_description, grouped.account_id, grouped.category_id
-                ORDER BY grouped.due_on ASC, grouped.created_at ASC, grouped.id ASC
-            ) AS installment_number,
-            COUNT(*) OVER (
-                PARTITION BY grouped.user_id, grouped.base_description, grouped.account_id, grouped.category_id
-            ) AS installment_total
-        FROM (
-            SELECT
-                id,
-                user_id,
-                account_id,
-                category_id,
-                created_at,
-                COALESCE(due_date, date) AS due_on,
-                TRIM(REGEXP_REPLACE(description, ' - Transação [0-9]+ de [0-9]+$', '')) AS base_description
-            FROM transactions
-            WHERE recurrence = 1
-              AND is_installment = 1
-        ) AS grouped
-    ) AS numbered
-    WHERE numbered.installment_total > 1
+        id,
+        ROW_NUMBER() OVER (
+            ORDER BY COALESCE(due_date, date) ASC, created_at ASC, id ASC
+        ) AS installment_number,
+        COUNT(*) OVER () AS installment_total
+    FROM transactions
+    WHERE user_id = 'a14484a7-0a61-409d-9097-77bc139108d5'
+      AND description LIKE '%Celular Sabrina%'
 ) AS series ON series.id = t.id
 SET
-    t.installment_number = series.installment_number,
-    t.installment_total = series.installment_total,
     t.description = CONCAT(
-        series.base_description,
-        ' - Transação ',
+        'Celular Sabrina - Transação ',
         series.installment_number,
         ' de ',
         series.installment_total
     ),
     t.updated_at = CURRENT_TIMESTAMP;
 
+SELECT
+    t.id,
+    t.due_date,
+    t.finished,
+    t.description
+FROM transactions t
+WHERE t.user_id = 'a14484a7-0a61-409d-9097-77bc139108d5'
+  AND t.description LIKE '%Celular Sabrina%'
+ORDER BY COALESCE(t.due_date, t.date) ASC, t.created_at ASC, t.id ASC;
+
 COMMIT;
+
+-- Depois da migration 2026_08_22_140000_add_installment_columns_to_transactions_table,
+-- marque as colunas de parcela:
+--
+-- UPDATE transactions AS t
+-- INNER JOIN (
+--     SELECT
+--         id,
+--         ROW_NUMBER() OVER (
+--             ORDER BY COALESCE(due_date, date) ASC, created_at ASC, id ASC
+--         ) AS installment_number,
+--         COUNT(*) OVER () AS installment_total
+--     FROM transactions
+--     WHERE user_id = 'a14484a7-0a61-409d-9097-77bc139108d5'
+--       AND description LIKE '%Celular Sabrina%'
+-- ) AS series ON series.id = t.id
+-- SET
+--     t.is_installment = 1,
+--     t.installment_number = series.installment_number,
+--     t.installment_total = series.installment_total,
+--     t.updated_at = CURRENT_TIMESTAMP;

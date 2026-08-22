@@ -8,13 +8,15 @@ use Illuminate\Support\Collection;
 class InstallmentBackfillService
 {
     /**
-     * Numera parcelas já salvas (is_installment) em grupos de 2 ou mais meses.
+     * Numera parcelas já salvas em grupos de 2 ou mais meses.
+     * Sem $description, só atualiza linhas com is_installment = true.
+     * Com $description, atualiza só o grupo cujo título base contém o texto.
      */
-    public function backfill(): int
+    public function backfill(?string $description = null): int
     {
         $updated = 0;
 
-        foreach ($this->existingSeries() as $series) {
+        foreach ($this->existingSeries($description) as $series) {
             $updated += $this->numberSeries($series);
         }
 
@@ -70,14 +72,25 @@ class InstallmentBackfillService
     /**
      * @return Collection<int, Collection<int, Transaction>>
      */
-    public function existingSeries(): Collection
+    public function existingSeries(?string $description = null): Collection
     {
-        return Transaction::query()
+        $query = Transaction::query()
             ->where('recurrence', true)
-            ->where('is_installment', true)
             ->orderByRaw(Transaction::dueDateExpression() . ' ASC')
             ->orderBy('created_at')
-            ->orderBy('id')
+            ->orderBy('id');
+
+        $filter = trim((string) $description);
+
+        if ($filter !== '') {
+            $base = InstallmentTitle::baseDescription($filter);
+            $like = '%' . addcslashes($base, '%_\\') . '%';
+            $query->where('description', 'like', $like);
+        } else {
+            $query->where('is_installment', true);
+        }
+
+        return $query
             ->get()
             ->groupBy(function (Transaction $transaction): string {
                 return implode('|', [

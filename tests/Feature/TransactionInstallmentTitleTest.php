@@ -180,3 +180,52 @@ test('backfill e idempotente e nao duplica o sufixo', function () {
             'TV - Transação 2 de 2',
         ]);
 });
+
+test('comando com description atualiza so o grupo informado', function () {
+    createInstallmentTransaction([
+        'description' => 'Celular Sabrina',
+        'is_installment' => false,
+        'due_date' => '2026-07-17',
+        'date' => '2026-07-01',
+    ]);
+    createInstallmentTransaction([
+        'description' => 'Celular Sabrina',
+        'is_installment' => false,
+        'due_date' => '2026-08-17',
+        'date' => '2026-08-17',
+    ]);
+    createInstallmentTransaction([
+        'description' => 'Notebook',
+        'is_installment' => false,
+        'due_date' => '2026-07-05',
+        'date' => '2026-07-05',
+    ]);
+    createInstallmentTransaction([
+        'description' => 'Notebook',
+        'is_installment' => false,
+        'due_date' => '2026-08-05',
+        'date' => '2026-08-05',
+    ]);
+
+    Artisan::call('transactions:backfill-installments', ['--description' => 'Celular Sabrina']);
+
+    $celular = Transaction::query()
+        ->where('description', 'like', '%Celular Sabrina%')
+        ->orderByRaw(Transaction::dueDateExpression() . ' ASC')
+        ->get();
+
+    expect($celular)->toHaveCount(2)
+        ->and($celular->pluck('description')->all())->toBe([
+            'Celular Sabrina - Transação 1 de 2',
+            'Celular Sabrina - Transação 2 de 2',
+        ])
+        ->and($celular->every(fn (Transaction $transaction): bool => $transaction->is_installment))->toBeTrue();
+
+    $notebook = Transaction::query()
+        ->where('description', 'Notebook')
+        ->get();
+
+    expect($notebook)->toHaveCount(2)
+        ->and($notebook->every(fn (Transaction $transaction): bool => $transaction->description === 'Notebook'))->toBeTrue()
+        ->and($notebook->every(fn (Transaction $transaction): bool => $transaction->installment_number === null))->toBeTrue();
+});
