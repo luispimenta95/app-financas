@@ -1,5 +1,5 @@
 -- Numera apenas PARCELAS já salvas (is_installment = 1) em grupos de
--- 2 ou mais meses, com o título "Transação X de Y".
+-- 2 ou mais meses, com o título "Parcela X de Y".
 -- Recorrências comuns (aluguel, assinatura, conta de luz) não são alteradas.
 --
 -- Pré-requisito: rode a migration
@@ -42,7 +42,7 @@ INNER JOIN (
                 category_id,
                 created_at,
                 COALESCE(due_date, date) AS due_on,
-                TRIM(REGEXP_REPLACE(description, ' - Transação [0-9]+ de [0-9]+$', '')) AS base_description
+                TRIM(REGEXP_REPLACE(description, '( - (Transação|Parcela) [0-9]+ de [0-9]+)+$', '')) AS base_description
             FROM transactions
             WHERE recurrence = 1
               AND is_installment = 1
@@ -55,7 +55,7 @@ SET
     t.installment_total = series.installment_total,
     t.description = CONCAT(
         series.base_description,
-        ' - Transação ',
+        ' - Parcela ',
         series.installment_number,
         ' de ',
         series.installment_total

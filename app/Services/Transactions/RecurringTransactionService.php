@@ -33,11 +33,12 @@ class RecurringTransactionService
                     ->where('category_id', $transaction->category_id)
                     ->whereDate('due_date', $dueDate)
                     ->where(function (Builder $query) use ($baseDescription): void {
-                        $like = addcslashes($baseDescription, '%_\\') . ' - Transação %';
+                        $escaped = addcslashes($baseDescription, '%_\\');
 
                         $query
                             ->where('description', $baseDescription)
-                            ->orWhere('description', 'like', $like);
+                            ->orWhere('description', 'like', $escaped . ' - Transação %')
+                            ->orWhere('description', 'like', $escaped . ' - Parcela %');
                     })
                     ->exists();
 
@@ -78,11 +79,12 @@ class RecurringTransactionService
             ->where('category_id', $transaction->category_id)
             ->where('is_installment', true)
             ->where(function (Builder $query) use ($baseDescription): void {
-                $like = addcslashes($baseDescription, '%_\\') . ' - Transação %';
+                $escaped = addcslashes($baseDescription, '%_\\');
 
                 $query
                     ->where('description', $baseDescription)
-                    ->orWhere('description', 'like', $like);
+                    ->orWhere('description', 'like', $escaped . ' - Transação %')
+                    ->orWhere('description', 'like', $escaped . ' - Parcela %');
             })
             ->get();
 

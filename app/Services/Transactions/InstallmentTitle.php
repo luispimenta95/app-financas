@@ -4,19 +4,19 @@ namespace App\Services\Transactions;
 
 class InstallmentTitle
 {
-    public const SUFFIX_PATTERN = '/ - Transação (\d+) de (\d+)$/u';
+    public const SUFFIX_PATTERN = '/ - (?:Transação|Parcela) (\d+) de (\d+)$/u';
 
     public static function label(int $number, int $total): string
     {
-        return "Transação {$number} de {$total}";
+        return "Parcela {$number} de {$total}";
     }
 
     public static function baseDescription(?string $description): string
     {
         $description = trim((string) $description);
 
-        if ($description !== '' && preg_match(self::SUFFIX_PATTERN, $description, $matches)) {
-            return trim(substr($description, 0, -strlen($matches[0])));
+        while ($description !== '' && preg_match(self::SUFFIX_PATTERN, $description, $matches)) {
+            $description = trim(substr($description, 0, -strlen($matches[0])));
         }
 
         return $description;
