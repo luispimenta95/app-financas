@@ -15,7 +15,6 @@ use Filament\Support\Colors\Color;
 use Filament\Support\Enums\FontWeight;
 use Filament\Support\Enums\IconPosition;
 use Filament\Tables;
-use Filament\Tables\Columns\Summarizers\Sum;
 use Filament\Tables\Columns\TextColumn\TextColumnSize;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
@@ -455,12 +454,7 @@ class TransactionResource extends Resource
                     TransactionType::Income => 'success',
                     TransactionType::Expense => 'danger',
                     default => 'gray',
-                })
-                ->summarize(
-                    Sum::make()
-                        ->label('Total')
-                        ->formatStateUsing(fn ($state): string => 'R$ ' . number_format(((int) $state) / 100, 2, ',', '.'))
-                ),
+                }),
             Tables\Columns\TextColumn::make('created_at')
                 ->label('Criado em')
                 ->dateTime('d/m/Y H:i')
