@@ -64,7 +64,19 @@ class TransactionResource extends Resource
                             ->placeholder('Ex: Conta de Luz')
                             ->required()
                             ->maxLength(255)
-                            ->columnSpanFull(),
+                            ->columnSpanFull()
+                            ->helperText(function (?Transaction $record): ?string {
+                                if (!$record?->isInstallment()) {
+                                    return null;
+                                }
+
+                                return 'Título exibido: ' . $record->displayTitle();
+                            }),
+
+                        Forms\Components\Placeholder::make('installment_label')
+                            ->label('Parcela')
+                            ->content(fn (?Transaction $record): string => $record?->installmentLabel() ?? '')
+                            ->visible(fn (?Transaction $record): bool => (bool) $record?->isInstallment()),
 
                         Forms\Components\ToggleButtons::make('transaction_type')
                             ->label('Tipo de transação')
@@ -91,19 +103,33 @@ class TransactionResource extends Resource
                             ->live()
                             ->default(false),
 
+                        Forms\Components\ToggleButtons::make('is_installment')
+                            ->label('Parcela')
+                            ->required()
+                            ->live()
+                            ->inline()
+                            ->boolean()
+                            ->default(false)
+                            ->helperText('Apenas parcelas recebem o título Transação X de Y. Recorrências comuns ficam sem numeração.')
+                            ->visible(fn (Forms\Get $get): bool => (bool) $get('recurrence'))
+                            ->disabled(fn (?Transaction $record): bool => $record !== null),
+
                         Forms\Components\TextInput::make('recurrence_months')
                             ->label('Cadastrar por quantos meses')
                             ->numeric()
                             ->minValue(1)
                             ->maxValue(120)
                             ->default(1)
-                            ->visible(fn (Forms\Get $get): bool => (bool) $get('recurrence')),
+                            ->helperText(fn (Forms\Get $get): ?string => (bool) $get('is_installment')
+                                ? 'Cada parcela ficará como Transação 1 de Y, Transação 2 de Y, etc.'
+                                : null)
+                            ->visible(fn (Forms\Get $get, ?Transaction $record): bool => (bool) $get('recurrence') && $record === null),
 
                         Forms\Components\Toggle::make('fixed_amount_recurrence')
                             ->label('Valor fixo nas recorrencias')
                             ->helperText('Marcado: repete o valor atual em todos os meses. Desmarcado: cria meses futuros com valor 0 para editar depois.')
                             ->default(false)
-                            ->visible(fn (Forms\Get $get): bool => (bool) $get('recurrence')),
+                            ->visible(fn (Forms\Get $get, ?Transaction $record): bool => (bool) $get('recurrence') && $record === null),
 
                         Forms\Components\FileUpload::make('attachment')
                             ->label('Anexo')
@@ -324,6 +350,7 @@ class TransactionResource extends Resource
                     ->searchable()
                     ->weight(FontWeight::SemiBold)
                     ->size(TextColumnSize::Large)
+                    ->getStateUsing(fn (Transaction $record): string => $record->displayTitle())
                     ->wrap(),
 
                 Tables\Columns\Layout\Split::make([
@@ -403,7 +430,8 @@ class TransactionResource extends Resource
                 ->weight(FontWeight::Medium)
                 ->wrap()
                 ->limit(48)
-                ->tooltip(fn (Transaction $record): string => $record->description)
+                ->getStateUsing(fn (Transaction $record): string => $record->displayTitle())
+                ->tooltip(fn (Transaction $record): string => $record->displayTitle())
                 ->description(fn (Transaction $record): ?string => $record->account?->name),
             Tables\Columns\TextColumn::make('category.name')
                 ->label('Categoria')

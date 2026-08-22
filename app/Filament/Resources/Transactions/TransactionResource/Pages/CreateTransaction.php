@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\Transactions\TransactionResource\Pages;
 
 use App\Filament\Resources\Transactions\TransactionResource;
+use App\Services\Transactions\InstallmentTitle;
 use App\Services\Transactions\RecurringTransactionService;
 use Filament\Resources\Pages\CreateRecord;
 
@@ -34,14 +35,16 @@ class CreateTransaction extends CreateRecord
         unset($data['recurrence_months']);
         unset($data['fixed_amount_recurrence']);
 
+        $data['description'] = InstallmentTitle::baseDescription($data['description'] ?? null);
+        $data['is_installment'] = (bool) ($data['recurrence'] ?? false)
+            && (bool) ($data['is_installment'] ?? false);
+
         return $data;
     }
 
     protected function afterCreate(): void
     {
-        $futureMonths = max(0, $this->recurrenceMonths - 1);
-
         app(RecurringTransactionService::class)
-            ->createFutureWithZero($this->record, $futureMonths, $this->fixedAmountRecurrence);
+            ->createFutureWithZero($this->record, $this->recurrenceMonths, $this->fixedAmountRecurrence);
     }
 }
