@@ -327,3 +327,12 @@ test('principais categorias em agosto consideram a fatura pelo vencimento', func
         ->assertSee('Cartão de Crédito')
         ->assertSee('R$ 2.250,00');
 });
+
+test('tabela de transacoes nao exibe somatorio de total', function () {
+    $component = Livewire::test(ListTransactions::class)->assertSuccessful();
+
+    $column = $component->instance()->getTable()->getColumn('amount');
+
+    expect($column)->not->toBeNull()
+        ->and($column->getSummarizers(Transaction::query()))->toBeEmpty();
+});
