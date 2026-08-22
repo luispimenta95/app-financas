@@ -42,7 +42,7 @@ INNER JOIN (
                 category_id,
                 created_at,
                 COALESCE(due_date, date) AS due_on,
-                TRIM(REGEXP_REPLACE(description, ' - (Transação|Parcela) [0-9]+ de [0-9]+$', '')) AS base_description
+                TRIM(REGEXP_REPLACE(description, '( - (Transação|Parcela) [0-9]+ de [0-9]+)+$', '')) AS base_description
             FROM transactions
             WHERE recurrence = 1
               AND is_installment = 1
