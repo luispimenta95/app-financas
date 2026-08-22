@@ -52,6 +52,7 @@ class RecurringTransactionService
                     'date' => $dueDate,
                     'finished' => false,
                     'recurrence' => true,
+                    'is_installment' => (bool) $transaction->is_installment,
                     'due_date' => $dueDate,
                     'payment_date' => null,
                     'description' => $baseDescription,
@@ -62,7 +63,7 @@ class RecurringTransactionService
             }
         }
 
-        if ($totalMonths < 2) {
+        if ($totalMonths < 2 || !$transaction->is_installment) {
             return;
         }
 
@@ -75,6 +76,7 @@ class RecurringTransactionService
             ->where('user_id', $transaction->user_id)
             ->where('account_id', $transaction->account_id)
             ->where('category_id', $transaction->category_id)
+            ->where('is_installment', true)
             ->where(function (Builder $query) use ($baseDescription): void {
                 $like = addcslashes($baseDescription, '%_\\') . ' - Transação %';
 

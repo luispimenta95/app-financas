@@ -36,6 +36,8 @@ class CreateTransaction extends CreateRecord
         unset($data['fixed_amount_recurrence']);
 
         $data['description'] = InstallmentTitle::baseDescription($data['description'] ?? null);
+        $data['is_installment'] = (bool) ($data['recurrence'] ?? false)
+            && (bool) ($data['is_installment'] ?? false);
 
         return $data;
     }

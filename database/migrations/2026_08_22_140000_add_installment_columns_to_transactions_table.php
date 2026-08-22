@@ -9,7 +9,8 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('transactions', function (Blueprint $table) {
-            $table->unsignedInteger('installment_number')->nullable()->after('recurrence');
+            $table->boolean('is_installment')->default(false)->after('recurrence');
+            $table->unsignedInteger('installment_number')->nullable()->after('is_installment');
             $table->unsignedInteger('installment_total')->nullable()->after('installment_number');
         });
     }
@@ -17,7 +18,7 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('transactions', function (Blueprint $table) {
-            $table->dropColumn(['installment_number', 'installment_total']);
+            $table->dropColumn(['is_installment', 'installment_number', 'installment_total']);
         });
     }
 };

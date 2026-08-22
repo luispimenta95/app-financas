@@ -28,13 +28,14 @@ function createInstallmentTransaction(array $overrides = []): Transaction
         'description' => 'Geladeira',
         'finished' => false,
         'recurrence' => true,
+        'is_installment' => true,
         'date' => '2026-08-10',
         'due_date' => '2026-08-10',
         'payment_date' => null,
     ], $overrides));
 }
 
-test('recorrencia de varios meses numera o titulo como transacao x de y', function () {
+test('parcela de varios meses numera o titulo como transacao x de y', function () {
     $transaction = createInstallmentTransaction();
 
     app(RecurringTransactionService::class)->createFutureWithZero($transaction, 3, true);
@@ -53,10 +54,30 @@ test('recorrencia de varios meses numera o titulo como transacao x de y', functi
     $first = Transaction::query()->where('description', 'Geladeira - Transação 1 de 3')->first();
 
     expect($first)->not->toBeNull()
+        ->and($first->is_installment)->toBeTrue()
         ->and($first->installment_number)->toBe(1)
         ->and($first->installment_total)->toBe(3)
         ->and($first->displayTitle())->toBe('Geladeira - Transação 1 de 3')
         ->and($first->installmentLabel())->toBe('Transação 1 de 3');
+});
+
+test('recorrencia comum nao recebe titulo de parcela', function () {
+    $transaction = createInstallmentTransaction([
+        'description' => 'Aluguel',
+        'is_installment' => false,
+    ]);
+
+    app(RecurringTransactionService::class)->createFutureWithZero($transaction, 3, true);
+
+    $titles = Transaction::query()
+        ->orderByRaw(Transaction::dueDateExpression() . ' ASC')
+        ->pluck('description')
+        ->all();
+
+    expect($titles)->toBe(['Aluguel', 'Aluguel', 'Aluguel'])
+        ->and(Transaction::query()->where('is_installment', true)->count())->toBe(0)
+        ->and($transaction->fresh()->installment_number)->toBeNull()
+        ->and($transaction->fresh()->isInstallment())->toBeFalse();
 });
 
 test('recorrencia de um mes nao adiciona titulo de parcela', function () {
@@ -72,7 +93,7 @@ test('recorrencia de um mes nao adiciona titulo de parcela', function () {
         ->and($transaction->fresh()->isInstallment())->toBeFalse();
 });
 
-test('comando atualiza transacoes recorrentes ja salvas', function () {
+test('comando atualiza apenas parcelas ja salvas', function () {
     createInstallmentTransaction([
         'description' => 'Notebook',
         'due_date' => '2026-06-05',
@@ -93,6 +114,19 @@ test('comando atualiza transacoes recorrentes ja salvas', function () {
 
     createInstallmentTransaction([
         'description' => 'Spotify',
+        'is_installment' => false,
+        'due_date' => '2026-06-01',
+        'date' => '2026-06-01',
+    ]);
+    createInstallmentTransaction([
+        'description' => 'Spotify',
+        'is_installment' => false,
+        'due_date' => '2026-07-01',
+        'date' => '2026-07-01',
+    ]);
+    createInstallmentTransaction([
+        'description' => 'Spotify',
+        'is_installment' => false,
         'due_date' => '2026-08-01',
         'date' => '2026-08-01',
     ]);
@@ -113,11 +147,14 @@ test('comando atualiza transacoes recorrentes ja salvas', function () {
         ->and($notebook->pluck('installment_number')->all())->toBe([1, 2, 3])
         ->and($notebook->pluck('installment_total')->unique()->all())->toBe([3]);
 
-    $spotify = Transaction::query()->where('description', 'Spotify')->first();
+    $spotify = Transaction::query()
+        ->where('description', 'Spotify')
+        ->orderByRaw(Transaction::dueDateExpression() . ' ASC')
+        ->get();
 
-    expect($spotify)->not->toBeNull()
-        ->and($spotify->installment_number)->toBeNull()
-        ->and($spotify->description)->toBe('Spotify');
+    expect($spotify)->toHaveCount(3)
+        ->and($spotify->pluck('description')->unique()->all())->toBe(['Spotify'])
+        ->and($spotify->every(fn (Transaction $transaction): bool => $transaction->installment_number === null))->toBeTrue();
 });
 
 test('backfill e idempotente e nao duplica o sufixo', function () {

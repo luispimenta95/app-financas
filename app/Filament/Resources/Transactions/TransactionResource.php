@@ -101,8 +101,18 @@ class TransactionResource extends Resource
                         Forms\Components\Toggle::make('recurrence')
                             ->label('Recorrencia mensal')
                             ->live()
+                            ->default(false),
+
+                        Forms\Components\ToggleButtons::make('is_installment')
+                            ->label('Parcela')
+                            ->required()
+                            ->live()
+                            ->inline()
+                            ->boolean()
                             ->default(false)
-                            ->helperText('Pagamentos em mais de um mês recebem o título Transação X de Y.'),
+                            ->helperText('Apenas parcelas recebem o título Transação X de Y. Recorrências comuns ficam sem numeração.')
+                            ->visible(fn (Forms\Get $get): bool => (bool) $get('recurrence'))
+                            ->disabled(fn (?Transaction $record): bool => $record !== null),
 
                         Forms\Components\TextInput::make('recurrence_months')
                             ->label('Cadastrar por quantos meses')
@@ -110,7 +120,9 @@ class TransactionResource extends Resource
                             ->minValue(1)
                             ->maxValue(120)
                             ->default(1)
-                            ->helperText('Cada mês ficará como Transação 1 de Y, Transação 2 de Y, etc.')
+                            ->helperText(fn (Forms\Get $get): ?string => (bool) $get('is_installment')
+                                ? 'Cada parcela ficará como Transação 1 de Y, Transação 2 de Y, etc.'
+                                : null)
                             ->visible(fn (Forms\Get $get, ?Transaction $record): bool => (bool) $get('recurrence') && $record === null),
 
                         Forms\Components\Toggle::make('fixed_amount_recurrence')

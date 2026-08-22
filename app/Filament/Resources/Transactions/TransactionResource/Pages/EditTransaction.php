@@ -35,10 +35,14 @@ class EditTransaction extends EditRecord
             ) ?? $dueDate;
         }
 
+        if (!($data['recurrence'] ?? false)) {
+            $data['is_installment'] = false;
+        }
+
         $installmentNumber = (int) ($this->record?->installment_number ?? 0);
         $installmentTotal = (int) ($this->record?->installment_total ?? 0);
 
-        if ($installmentTotal > 1 && $installmentNumber > 0) {
+        if ($installmentTotal > 1 && $installmentNumber > 0 && ($this->record?->is_installment || ($data['is_installment'] ?? false))) {
             $data['description'] = InstallmentTitle::format(
                 $data['description'] ?? null,
                 $installmentNumber,

@@ -8,7 +8,7 @@ use Illuminate\Support\Collection;
 class InstallmentBackfillService
 {
     /**
-     * Numera transações recorrentes já salvas em grupos de 2 ou mais meses.
+     * Numera parcelas já salvas (is_installment) em grupos de 2 ou mais meses.
      */
     public function backfill(): int
     {
@@ -49,12 +49,14 @@ class InstallmentBackfillService
 
             $dirty = $transaction->installment_number !== $number
                 || $transaction->installment_total !== $total
-                || $transaction->description !== $title;
+                || $transaction->description !== $title
+                || !$transaction->is_installment;
 
             if (!$dirty) {
                 continue;
             }
 
+            $transaction->is_installment = true;
             $transaction->installment_number = $number;
             $transaction->installment_total = $total;
             $transaction->description = $title;
@@ -72,6 +74,7 @@ class InstallmentBackfillService
     {
         return Transaction::query()
             ->where('recurrence', true)
+            ->where('is_installment', true)
             ->orderByRaw(Transaction::dueDateExpression() . ' ASC')
             ->orderBy('created_at')
             ->orderBy('id')

@@ -1,8 +1,13 @@
--- Numera transações recorrentes já salvas (2 ou mais meses) com o título
--- "Transação X de Y" e preenche installment_number / installment_total.
+-- Numera apenas PARCELAS já salvas (is_installment = 1) em grupos de
+-- 2 ou mais meses, com o título "Transação X de Y".
+-- Recorrências comuns (aluguel, assinatura, conta de luz) não são alteradas.
 --
 -- Pré-requisito: rode a migration
 --   2026_08_22_140000_add_installment_columns_to_transactions_table
+--
+-- Antes de rodar, marque as transações que são parcela:
+--   UPDATE transactions SET is_installment = 1
+--   WHERE recurrence = 1 AND description IN ('Geladeira', 'Notebook');
 --
 -- Uso:
 --   mysql -u USER -p DATABASE < database/scripts/backfill_transaction_installments.sql
@@ -40,6 +45,7 @@ INNER JOIN (
                 TRIM(REGEXP_REPLACE(description, ' - Transação [0-9]+ de [0-9]+$', '')) AS base_description
             FROM transactions
             WHERE recurrence = 1
+              AND is_installment = 1
         ) AS grouped
     ) AS numbered
     WHERE numbered.installment_total > 1

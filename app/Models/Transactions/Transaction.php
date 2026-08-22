@@ -28,6 +28,7 @@ class Transaction extends Model
         'date',
         'finished',
         'recurrence',
+        'is_installment',
         'installment_number',
         'installment_total',
         'due_date',
@@ -44,6 +45,7 @@ class Transaction extends Model
             'transaction_type' => TransactionType::class,
             'finished' => 'boolean',
             'recurrence' => 'boolean',
+            'is_installment' => 'boolean',
             'date' => 'date',
             'due_date' => 'date',
             'payment_date' => 'date',
@@ -203,7 +205,9 @@ class Transaction extends Model
 
     public function isInstallment(): bool
     {
-        return (int) $this->installment_total > 1 && (int) $this->installment_number > 0;
+        return (bool) $this->is_installment
+            && (int) $this->installment_total > 1
+            && (int) $this->installment_number > 0;
     }
 
     public function installmentLabel(): ?string
