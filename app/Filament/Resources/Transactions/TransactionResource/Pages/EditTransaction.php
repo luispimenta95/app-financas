@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\Transactions\TransactionResource\Pages;
 
 use App\Filament\Resources\Transactions\TransactionResource;
+use App\Services\Transactions\InstallmentTitle;
 use Filament\Actions;
 use Filament\Resources\Pages\EditRecord;
 
@@ -15,6 +16,7 @@ class EditTransaction extends EditRecord
         $data['due_date'] = TransactionResource::normalizeDateInput(
             $data['due_date'] ?? ($data['date'] ?? null)
         );
+        $data['description'] = InstallmentTitle::baseDescription($data['description'] ?? null);
 
         return $data;
     }
@@ -31,6 +33,17 @@ class EditTransaction extends EditRecord
             $data['payment_date'] = TransactionResource::normalizeDateInput(
                 $data['payment_date'] ?? $dueDate
             ) ?? $dueDate;
+        }
+
+        $installmentNumber = (int) ($this->record?->installment_number ?? 0);
+        $installmentTotal = (int) ($this->record?->installment_total ?? 0);
+
+        if ($installmentTotal > 1 && $installmentNumber > 0) {
+            $data['description'] = InstallmentTitle::format(
+                $data['description'] ?? null,
+                $installmentNumber,
+                $installmentTotal,
+            );
         }
 
         return $data;
