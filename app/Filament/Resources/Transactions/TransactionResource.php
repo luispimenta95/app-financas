@@ -110,7 +110,7 @@ class TransactionResource extends Resource
                             ->inline()
                             ->boolean()
                             ->default(false)
-                            ->helperText('Apenas parcelas recebem o título Transação X de Y. Recorrências comuns ficam sem numeração.')
+                            ->helperText('Apenas parcelas recebem o título Parcela X de Y. Recorrências comuns ficam sem numeração.')
                             ->visible(fn (Forms\Get $get): bool => (bool) $get('recurrence'))
                             ->disabled(fn (?Transaction $record): bool => $record !== null),
 
@@ -121,7 +121,7 @@ class TransactionResource extends Resource
                             ->maxValue(120)
                             ->default(1)
                             ->helperText(fn (Forms\Get $get): ?string => (bool) $get('is_installment')
-                                ? 'Cada parcela ficará como Transação 1 de Y, Transação 2 de Y, etc.'
+                                ? 'Cada parcela ficará como Parcela 1 de Y, Parcela 2 de Y, etc.'
                                 : null)
                             ->visible(fn (Forms\Get $get, ?Transaction $record): bool => (bool) $get('recurrence') && $record === null),
 

@@ -35,7 +35,7 @@ function createInstallmentTransaction(array $overrides = []): Transaction
     ], $overrides));
 }
 
-test('parcela de varios meses numera o titulo como transacao x de y', function () {
+test('parcela de varios meses numera o titulo como parcela x de y', function () {
     $transaction = createInstallmentTransaction();
 
     app(RecurringTransactionService::class)->createFutureWithZero($transaction, 3, true);
@@ -46,19 +46,19 @@ test('parcela de varios meses numera o titulo como transacao x de y', function (
         ->all();
 
     expect($titles)->toBe([
-        'Geladeira - Transação 1 de 3',
-        'Geladeira - Transação 2 de 3',
-        'Geladeira - Transação 3 de 3',
+        'Geladeira - Parcela 1 de 3',
+        'Geladeira - Parcela 2 de 3',
+        'Geladeira - Parcela 3 de 3',
     ]);
 
-    $first = Transaction::query()->where('description', 'Geladeira - Transação 1 de 3')->first();
+    $first = Transaction::query()->where('description', 'Geladeira - Parcela 1 de 3')->first();
 
     expect($first)->not->toBeNull()
         ->and($first->is_installment)->toBeTrue()
         ->and($first->installment_number)->toBe(1)
         ->and($first->installment_total)->toBe(3)
-        ->and($first->displayTitle())->toBe('Geladeira - Transação 1 de 3')
-        ->and($first->installmentLabel())->toBe('Transação 1 de 3');
+        ->and($first->displayTitle())->toBe('Geladeira - Parcela 1 de 3')
+        ->and($first->installmentLabel())->toBe('Parcela 1 de 3');
 });
 
 test('recorrencia comum nao recebe titulo de parcela', function () {
@@ -140,9 +140,9 @@ test('comando atualiza apenas parcelas ja salvas', function () {
 
     expect($notebook)->toHaveCount(3)
         ->and($notebook->pluck('description')->all())->toBe([
-            'Notebook - Transação 1 de 3',
-            'Notebook - Transação 2 de 3',
-            'Notebook - Transação 3 de 3',
+            'Notebook - Parcela 1 de 3',
+            'Notebook - Parcela 2 de 3',
+            'Notebook - Parcela 3 de 3',
         ])
         ->and($notebook->pluck('installment_number')->all())->toBe([1, 2, 3])
         ->and($notebook->pluck('installment_total')->unique()->all())->toBe([3]);
@@ -176,7 +176,7 @@ test('backfill e idempotente e nao duplica o sufixo', function () {
 
     expect(Transaction::query()->orderByRaw(Transaction::dueDateExpression() . ' ASC')->pluck('description')->all())
         ->toBe([
-            'TV - Transação 1 de 2',
-            'TV - Transação 2 de 2',
+            'TV - Parcela 1 de 2',
+            'TV - Parcela 2 de 2',
         ]);
 });
