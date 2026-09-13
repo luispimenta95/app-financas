@@ -15,6 +15,7 @@ use Filament\Tables\Columns\Summarizers\Sum;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Query\Builder as QueryBuilder;
 use Leandrocfe\FilamentPtbrFormFields\Money;
 
 class InvestmentResource extends Resource
@@ -176,12 +177,26 @@ class InvestmentResource extends Resource
                 Tables\Grouping\Group::make('daily_liquidity')
                     ->label('Tipo de resgate')
                     ->titlePrefixedWithLabel(false)
+                    ->getKeyFromRecordUsing(
+                        fn (Investment $record): string => $record->redemptionGroupKey()
+                    )
                     ->getTitleFromRecordUsing(
                         fn (Investment $record): string => $record->redemptionTypeLabel()
                     )
+                    ->groupQueryUsing(
+                        fn (QueryBuilder $query): QueryBuilder => $query->groupByRaw(
+                            Investment::redemptionGroupExpression()
+                        )
+                    )
                     ->orderQueryUsing(
                         fn (Builder $query, string $direction): Builder => $query->orderByRaw(
-                            'CASE WHEN daily_liquidity THEN 0 ELSE 1 END '.($direction === 'desc' ? 'DESC' : 'ASC')
+                            Investment::redemptionOrderExpression() . ' ' . ($direction === 'desc' ? 'DESC' : 'ASC')
+                        )
+                    )
+                    ->scopeQueryByKeyUsing(
+                        fn (Builder $query, string $key): Builder => $query->where(
+                            'daily_liquidity',
+                            $key === Investment::REDEMPTION_GROUP_DAILY
                         )
                     ),
             ])
@@ -234,7 +249,7 @@ class InvestmentResource extends Resource
 
         $resolvedType = InvestmentType::tryFrom((string) $type);
 
-        return ! ($resolvedType?->isEstimatedControl() ?? false);
+        return !($resolvedType?->isEstimatedControl() ?? false);
     }
 
     private static function resolveRateType(mixed $rateType): InvestmentRateType

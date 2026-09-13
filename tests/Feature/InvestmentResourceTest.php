@@ -264,3 +264,30 @@ test('investimentos sao ordenados por resgate diario e depois por vencimento mai
         ->assertSee('Resgate diário')
         ->assertSee('Data fixa');
 });
+
+test('resumo agrupado soma valores de resgate diario e de data fixa', function () {
+    Investment::factory()->for($this->user)->withDailyLiquidity()->create([
+        'name' => 'CDB Diario A',
+        'amount' => 1000000,
+    ]);
+    Investment::factory()->for($this->user)->withDailyLiquidity()->create([
+        'name' => 'CDB Diario B',
+        'amount' => 2000000,
+    ]);
+    Investment::factory()->for($this->user)->withoutDailyLiquidity('2026-10-01')->create([
+        'name' => 'LCI Curto',
+        'amount' => 400000,
+    ]);
+    Investment::factory()->for($this->user)->withoutDailyLiquidity('2028-12-01')->create([
+        'name' => 'CDB Longo',
+        'amount' => 500000,
+    ]);
+
+    Livewire::test(ManageInvestments::class)
+        ->set('activeTab', InvestmentType::FixedIncome->value)
+        ->assertSee('Resgate diário')
+        ->assertSee('Data fixa')
+        ->assertSee('30.000,00')
+        ->assertSee('9.000,00')
+        ->assertSee('39.000,00');
+});
