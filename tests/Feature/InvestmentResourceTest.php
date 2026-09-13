@@ -232,3 +232,35 @@ test('renda variavel e fora do brasil podem coexistir', function () {
         ->and(Investment::query()->abroad()->count())->toBe(1)
         ->and((int) Investment::query()->sum('amount'))->toBe(300000);
 });
+
+test('investimentos sao ordenados por resgate diario e depois por vencimento mais proximo', function () {
+    $later = Investment::factory()->for($this->user)->withoutDailyLiquidity('2028-12-01')->create([
+        'name' => 'CDB Longo',
+        'application_date' => '2026-01-01',
+    ]);
+    $dailyB = Investment::factory()->for($this->user)->withDailyLiquidity()->create([
+        'name' => 'Tesouro Selic',
+        'application_date' => '2025-01-01',
+    ]);
+    $soon = Investment::factory()->for($this->user)->withoutDailyLiquidity('2026-10-01')->create([
+        'name' => 'LCI Curto',
+        'application_date' => '2024-01-01',
+    ]);
+    $dailyA = Investment::factory()->for($this->user)->withDailyLiquidity()->create([
+        'name' => 'CDB Liquidez',
+        'application_date' => '2026-06-01',
+    ]);
+
+    expect(Investment::query()->orderByRedemption()->pluck('name')->all())->toBe([
+        'CDB Liquidez',
+        'Tesouro Selic',
+        'LCI Curto',
+        'CDB Longo',
+    ]);
+
+    Livewire::test(ManageInvestments::class)
+        ->set('activeTab', InvestmentType::FixedIncome->value)
+        ->assertCanSeeTableRecords([$dailyA, $dailyB, $soon, $later], inOrder: true)
+        ->assertSee('Resgate diário')
+        ->assertSee('Data fixa');
+});

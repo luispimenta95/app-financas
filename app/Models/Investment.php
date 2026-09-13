@@ -130,6 +130,27 @@ class Investment extends Model
         return ($this->rate_type ?? InvestmentRateType::Cdi)->formatRate($this->interest_rate);
     }
 
+    public function hasDailyRedemption(): bool
+    {
+        return (bool) $this->daily_liquidity;
+    }
+
+    public function redemptionTypeLabel(): string
+    {
+        return $this->hasDailyRedemption() ? 'Resgate diário' : 'Data fixa';
+    }
+
+    /**
+     * Resgate diário primeiro; depois data fixa, do vencimento mais próximo ao mais distante.
+     */
+    public function scopeOrderByRedemption(Builder $query): Builder
+    {
+        return $query
+            ->orderByRaw('CASE WHEN daily_liquidity THEN 0 ELSE 1 END')
+            ->orderBy('maturity_date')
+            ->orderBy('name');
+    }
+
     public function scopeOfType(Builder $query, InvestmentType $type): Builder
     {
         return $query->where('type', $type);

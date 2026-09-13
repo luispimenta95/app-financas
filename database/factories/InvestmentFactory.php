@@ -75,6 +75,14 @@ class InvestmentFactory extends Factory
         ]);
     }
 
+    public function withDailyLiquidity(): static
+    {
+        return $this->state(fn () => [
+            'daily_liquidity' => true,
+            'maturity_date' => null,
+        ]);
+    }
+
     public function withoutDailyLiquidity(?string $maturityDate = null): static
     {
         return $this->state(fn () => [
