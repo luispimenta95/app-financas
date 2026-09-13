@@ -42,10 +42,14 @@ class MonthRevenue extends ChartWidget
 
         $income = $this->getPeriodAmount($startDate, $endDate, $preview, $accountId, TransactionType::Income);
         $expense = $this->getPeriodAmount($startDate, $endDate, $preview, $accountId, TransactionType::Expense);
+        $investmentContributions = $this->getPeriodInvestmentAmount($startDate, $endDate, $preview, $accountId, TransactionType::Expense);
+        $investmentRedemptions = $this->getPeriodInvestmentAmount($startDate, $endDate, $preview, $accountId, TransactionType::Income);
 
         $labels = $this->buildMonthLabels($startDate, $endDate);
         $incomeMap = $income->keyBy('new_date');
         $expenseMap = $expense->keyBy('new_date');
+        $investmentContributionMap = $investmentContributions->keyBy('new_date');
+        $investmentRedemptionMap = $investmentRedemptions->keyBy('new_date');
 
         $incomeData = [];
         $expenseData = [];
@@ -54,9 +58,10 @@ class MonthRevenue extends ChartWidget
         foreach ($labels as $key => $label) {
             $inc = (float) (($incomeMap[$key]->aggregate ?? 0) / 100);
             $exp = (float) (($expenseMap[$key]->aggregate ?? 0) / 100);
+            $investmentImpact = (float) ((($investmentContributionMap[$key]->aggregate ?? 0) - ($investmentRedemptionMap[$key]->aggregate ?? 0)) / 100);
             $incomeData[] = $inc;
             $expenseData[] = $exp;
-            $balanceData[] = $inc - $exp;
+            $balanceData[] = $inc - $exp - $investmentImpact;
         }
 
         return [
@@ -120,6 +125,27 @@ class MonthRevenue extends ChartWidget
             ")
             ->where('transaction_type', $transactionType)
             ->withoutInvestments()
+            ->forCashFlowPeriod($startDate, $endDate, $preview);
+
+        if ($accountId) {
+            $query->where('account_id', $accountId);
+        }
+
+        return $query->groupBy('year', 'month')->get();
+    }
+
+    private function getPeriodInvestmentAmount(string $startDate, string $endDate, bool $preview, ?string $accountId, TransactionType $transactionType): Collection
+    {
+        $cashFlowDate = Transaction::cashFlowDateExpression();
+
+        $query = Transaction::selectRaw("
+                sum(`amount`) as `aggregate`, 
+                DATE_FORMAT({$cashFlowDate}, '%Y-%m') AS `new_date`, 
+                YEAR({$cashFlowDate}) AS `year`, 
+                MONTH({$cashFlowDate}) AS `month`
+            ")
+            ->onlyInvestments()
+            ->where('transaction_type', $transactionType)
             ->forCashFlowPeriod($startDate, $endDate, $preview);
 
         if ($accountId) {

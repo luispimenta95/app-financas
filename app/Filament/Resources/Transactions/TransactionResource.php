@@ -57,16 +57,25 @@ class TransactionResource extends Resource
                             ->dehydrateStateUsing(fn (?string $state): ?int => str($state)->replace(['.', ','], '')->toInteger()),
                         Forms\Components\DatePicker::make('due_date')
                             ->label('Data de vencimento')
-                            ->native(false)
-                            ->displayFormat('d/m/Y')
-                            ->format('Y-m-d')
                             ->required(),
                         Forms\Components\TextInput::make('description')
                             ->label('Descrição')
                             ->placeholder('Ex: Conta de Luz')
                             ->required()
                             ->maxLength(255)
-                            ->columnSpanFull(),
+                            ->columnSpanFull()
+                            ->helperText(function (?Transaction $record): ?string {
+                                if (!$record?->isInstallment()) {
+                                    return null;
+                                }
+
+                                return 'Título exibido: ' . $record->displayTitle();
+                            }),
+
+                        Forms\Components\Placeholder::make('installment_label')
+                            ->label('Parcela')
+                            ->content(fn (?Transaction $record): string => $record?->installmentLabel() ?? '')
+                            ->visible(fn (?Transaction $record): bool => (bool) $record?->isInstallment()),
 
                         Forms\Components\ToggleButtons::make('transaction_type')
                             ->label('Tipo de transação')
@@ -83,10 +92,7 @@ class TransactionResource extends Resource
 
                         Forms\Components\DatePicker::make('payment_date')
                             ->label('Data de pagamento')
-                            ->native(false)
-                            ->displayFormat('d/m/Y')
-                            ->format('Y-m-d')
-                            ->helperText('Usada nos totais de receitas e despesas do mês em que o valor foi pago/recebido.')
+                            ->helperText('Usada nos widgets de receitas, despesas e saldo. A listagem e o somatório usam o mês de vencimento.')
                             ->visible(fn (Forms\Get $get): bool => (bool) $get('finished'))
                             ->required(fn (Forms\Get $get): bool => (bool) $get('finished'))
                             ->default(fn (Forms\Get $get): ?string => $get('due_date')),
@@ -96,19 +102,33 @@ class TransactionResource extends Resource
                             ->live()
                             ->default(false),
 
+                        Forms\Components\ToggleButtons::make('is_installment')
+                            ->label('Parcela')
+                            ->required()
+                            ->live()
+                            ->inline()
+                            ->boolean()
+                            ->default(false)
+                            ->helperText('Apenas parcelas recebem o título Parcela X de Y. Recorrências comuns ficam sem numeração.')
+                            ->visible(fn (Forms\Get $get): bool => (bool) $get('recurrence'))
+                            ->disabled(fn (?Transaction $record): bool => $record !== null),
+
                         Forms\Components\TextInput::make('recurrence_months')
                             ->label('Cadastrar por quantos meses')
                             ->numeric()
                             ->minValue(1)
                             ->maxValue(120)
                             ->default(1)
-                            ->visible(fn (Forms\Get $get): bool => (bool) $get('recurrence')),
+                            ->helperText(fn (Forms\Get $get): ?string => (bool) $get('is_installment')
+                                ? 'Cada parcela ficará como Parcela 1 de Y, Parcela 2 de Y, etc.'
+                                : null)
+                            ->visible(fn (Forms\Get $get, ?Transaction $record): bool => (bool) $get('recurrence') && $record === null),
 
                         Forms\Components\Toggle::make('fixed_amount_recurrence')
                             ->label('Valor fixo nas recorrencias')
                             ->helperText('Marcado: repete o valor atual em todos os meses. Desmarcado: cria meses futuros com valor 0 para editar depois.')
                             ->default(false)
-                            ->visible(fn (Forms\Get $get): bool => (bool) $get('recurrence')),
+                            ->visible(fn (Forms\Get $get, ?Transaction $record): bool => (bool) $get('recurrence') && $record === null),
 
                         Forms\Components\FileUpload::make('attachment')
                             ->label('Anexo')
@@ -146,7 +166,9 @@ class TransactionResource extends Resource
                 'asc',
             )
             ->defaultGroup('due_date')
+            ->striped()
             ->modifyQueryUsing(fn (Builder $query): Builder => $query
+                ->with(['category', 'account'])
                 ->orderByRaw(Transaction::dueDateExpression() . ' ASC')
                 ->orderByRaw("case when transaction_type = 'income' then 0 else 1 end")
                 ->orderBy('created_at'))
@@ -262,11 +284,7 @@ class TransactionResource extends Resource
                     ->label('Conta')
                     ->getTitleFromRecordUsing(fn (Transaction $record): ?string => $record->account?->name),
             ])
-            ->paginated([
-                100,
-                'all',
-            ])
-            ->defaultPaginationPageOption(25)
+            ->paginated(false)
             ->actionsAlignment('right')
             ->actions([
                 Tables\Actions\ViewAction::make()
@@ -295,48 +313,37 @@ class TransactionResource extends Resource
     {
         return [
             Tables\Columns\Layout\Stack::make([
-                Tables\Columns\Layout\Grid::make([
-                    'lg' => 2,
-                ])
-                    ->schema([
-                        Tables\Columns\TextColumn::make('due_date')
-                            ->label('Vencimento')
-                            ->getStateUsing(fn (Transaction $record) => $record->displayDueDate())
-                            ->date('d/m/Y')
-                            ->sortable(query: fn (Builder $query, string $direction): Builder => $query->orderByRaw(
-                                Transaction::dueDateExpression() . ' ' . ($direction === 'desc' ? 'DESC' : 'ASC')
-                            ))
-                            ->badge(),
-                        Tables\Columns\TextColumn::make('payment_date')
-                            ->label('Pagamento')
-                            ->date('d/m/Y')
-                            ->placeholder('—')
-                            ->sortable()
-                            ->badge()
-                            ->color('gray'),
-                        Tables\Columns\TextColumn::make('transaction_type')
-                            ->label('Tipo')
-                            ->badge()
-                            ->iconPosition(IconPosition::After)
-                            ->alignEnd(),
+                Tables\Columns\Layout\Split::make([
+                    Tables\Columns\TextColumn::make('due_date')
+                        ->label('Vencimento')
+                        ->getStateUsing(fn (Transaction $record) => $record->displayDueDate())
+                        ->date('d/m/Y')
+                        ->sortable(query: fn (Builder $query, string $direction): Builder => $query->orderByRaw(
+                            Transaction::dueDateExpression() . ' ' . ($direction === 'desc' ? 'DESC' : 'ASC')
+                        ))
+                        ->badge()
+                        ->color('gray'),
+                    Tables\Columns\TextColumn::make('transaction_type')
+                        ->label('Tipo')
+                        ->badge()
+                        ->iconPosition(IconPosition::After)
+                        ->grow(false),
+                ]),
 
-                        Tables\Columns\TextColumn::make('description')
-                            ->label('Descrição')
-                            ->searchable()
-                            ->size(Tables\Columns\TextColumn\TextColumnSize::Large),
-                        Tables\Columns\TextColumn::make('category.name')
-                            ->label('Categoria')
-                            ->searchable()
-                            ->badge()
-                            ->icon(fn ($record) => $record->category->icon)
-                            ->color(fn ($record) => Color::hex($record->category->color))
-                            ->alignEnd(),
+                Tables\Columns\TextColumn::make('payment_date')
+                    ->label('Pagamento')
+                    ->date('d/m/Y')
+                    ->placeholder('—')
+                    ->sortable()
+                    ->badge()
+                    ->color('gray'),
 
                 Tables\Columns\TextColumn::make('description')
                     ->label('Descrição')
                     ->searchable()
                     ->weight(FontWeight::SemiBold)
                     ->size(TextColumnSize::Large)
+                    ->getStateUsing(fn (Transaction $record): string => $record->displayTitle())
                     ->wrap(),
 
                 Tables\Columns\Layout\Split::make([
@@ -416,7 +423,8 @@ class TransactionResource extends Resource
                 ->weight(FontWeight::Medium)
                 ->wrap()
                 ->limit(48)
-                ->tooltip(fn (Transaction $record): string => $record->description)
+                ->getStateUsing(fn (Transaction $record): string => $record->displayTitle())
+                ->tooltip(fn (Transaction $record): string => $record->displayTitle())
                 ->description(fn (Transaction $record): ?string => $record->account?->name),
             Tables\Columns\TextColumn::make('category.name')
                 ->label('Categoria')
@@ -447,11 +455,6 @@ class TransactionResource extends Resource
                     TransactionType::Expense => 'danger',
                     default => 'gray',
                 }),
-            Tables\Columns\TextColumn::make('due_date')
-                ->label('Vencimento')
-                ->date('d/m/Y')
-                ->sortable()
-                ->toggleable(isToggledHiddenByDefault: true),
             Tables\Columns\TextColumn::make('created_at')
                 ->label('Criado em')
                 ->dateTime('d/m/Y H:i')

@@ -35,7 +35,8 @@ class TransactionExporter extends Exporter
                 ->label('Finalizada')
                 ->formatStateUsing(fn (bool $state): string => $state ? 'Sim' : 'Não'),
             ExportColumn::make('description')
-                ->label('Descrição'),
+                ->label('Descrição')
+                ->formatStateUsing(fn (?string $state, Transaction $record): string => $record->displayTitle()),
             ExportColumn::make('account.name')
                 ->label('Conta'),
             ExportColumn::make('category.name')

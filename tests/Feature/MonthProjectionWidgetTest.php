@@ -175,3 +175,47 @@ test('widget renderiza valores projetados do mes atual', function () {
         ->assertSee('R$ 1.000,00')
         ->assertSee('R$ 2.000,00');
 });
+
+test('saldo projetado e a diferenca entre receitas e despesas', function () {
+    $investmentCategory = Category::query()
+        ->where('user_id', $this->user->id)
+        ->where('slug', Category::INVESTMENTS_SLUG)
+        ->firstOrFail();
+
+    createProjectionTransaction([
+        'transaction_type' => TransactionType::Income,
+        'amount' => 517548,
+        'finished' => true,
+        'description' => 'Salario',
+        'date' => '2026-07-05',
+        'due_date' => '2026-07-05',
+        'payment_date' => '2026-07-05',
+    ]);
+
+    createProjectionTransaction([
+        'transaction_type' => TransactionType::Expense,
+        'amount' => 427363,
+        'finished' => true,
+        'description' => 'Despesas do mes',
+        'date' => '2026-07-10',
+        'due_date' => '2026-07-10',
+        'payment_date' => '2026-07-10',
+    ]);
+
+    createProjectionTransaction([
+        'category_id' => $investmentCategory->id,
+        'transaction_type' => TransactionType::Expense,
+        'amount' => 202185,
+        'finished' => true,
+        'description' => 'Aporte',
+        'date' => '2026-07-12',
+        'due_date' => '2026-07-12',
+        'payment_date' => '2026-07-12',
+    ]);
+
+    Livewire::test(MonthProjectionWidget::class)
+        ->assertSee('R$ 5.175,48')
+        ->assertSee('R$ 4.273,63')
+        ->assertSee('R$ 901,85')
+        ->assertDontSee('R$ -1.120,00');
+});

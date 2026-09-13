@@ -6,8 +6,10 @@ use App\Enums\TransactionType;
 use App\Models\Scopes\TenantScope;
 use App\Models\Traits\BelongsToUser;
 use App\Models\User;
+use App\Services\Transactions\InstallmentTitle;
 use Illuminate\Database\Eloquent\Attributes\ScopedBy;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -26,6 +28,9 @@ class Transaction extends Model
         'date',
         'finished',
         'recurrence',
+        'is_installment',
+        'installment_number',
+        'installment_total',
         'due_date',
         'payment_date',
         'description',
@@ -40,6 +45,7 @@ class Transaction extends Model
             'transaction_type' => TransactionType::class,
             'finished' => 'boolean',
             'recurrence' => 'boolean',
+            'is_installment' => 'boolean',
             'date' => 'date',
             'due_date' => 'date',
             'payment_date' => 'date',
@@ -61,6 +67,22 @@ class Transaction extends Model
         return $this->belongsTo(Category::class);
     }
 
+    protected function installmentNumber(): Attribute
+    {
+        return Attribute::make(
+            get: fn (mixed $value): ?int => $value === null ? null : (int) $value,
+            set: fn (mixed $value): ?int => $value === null || $value === '' ? null : (int) $value,
+        );
+    }
+
+    protected function installmentTotal(): Attribute
+    {
+        return Attribute::make(
+            get: fn (mixed $value): ?int => $value === null ? null : (int) $value,
+            set: fn (mixed $value): ?int => $value === null || $value === '' ? null : (int) $value,
+        );
+    }
+
     public function scopeWithoutInvestments(Builder $query): Builder
     {
         return $query->whereHas('category', function (Builder $categoryQuery): void {
@@ -72,6 +94,31 @@ class Transaction extends Model
     {
         return $query->whereHas('category', function (Builder $categoryQuery): void {
             $categoryQuery->where('slug', Category::INVESTMENTS_SLUG);
+        });
+    }
+
+    /**
+     * Pesquisa usada na listagem: descrição, categoria ou conta.
+     */
+    public function scopeSearchTerm(Builder $query, mixed $search): Builder
+    {
+        $term = trim((string) $search);
+
+        if ($term === '') {
+            return $query;
+        }
+
+        $like = '%' . addcslashes($term, '%_\\') . '%';
+
+        return $query->where(function (Builder $searchQuery) use ($like): void {
+            $searchQuery
+                ->where('description', 'like', $like)
+                ->orWhereHas('category', function (Builder $categoryQuery) use ($like): void {
+                    $categoryQuery->where('name', 'like', $like);
+                })
+                ->orWhereHas('account', function (Builder $accountQuery) use ($like): void {
+                    $accountQuery->where('name', 'like', $like);
+                });
         });
     }
 
@@ -154,6 +201,38 @@ class Transaction extends Model
     public function displayDueDate(): ?Carbon
     {
         return $this->due_date ?? $this->date;
+    }
+
+    public function isInstallment(): bool
+    {
+        return (bool) $this->is_installment
+            && (int) $this->installment_total > 1
+            && (int) $this->installment_number > 0;
+    }
+
+    public function installmentLabel(): ?string
+    {
+        if (!$this->isInstallment()) {
+            return null;
+        }
+
+        return InstallmentTitle::label(
+            (int) $this->installment_number,
+            (int) $this->installment_total,
+        );
+    }
+
+    public function displayTitle(): string
+    {
+        if ($this->isInstallment()) {
+            return InstallmentTitle::format(
+                $this->description,
+                (int) $this->installment_number,
+                (int) $this->installment_total,
+            );
+        }
+
+        return (string) $this->description;
     }
 
     private static function normalizePeriodBoundary(mixed $value): ?string

@@ -36,7 +36,7 @@ class RecentActivityWidget extends Widget
                 $type = $transaction->transaction_type?->getLabel() ?? 'Transação';
 
                 return [
-                    'title' => $transaction->description ?: $type,
+                    'title' => $transaction->displayTitle() ?: $type,
                     'meta' => trim(($transaction->category?->name ?? 'Sem categoria') . ' · ' . ($transaction->account?->name ?? '')),
                     'time' => $transaction->created_at?->diffForHumans() ?? '',
                     'amount' => 'R$ ' . number_format($transaction->amount / 100, 2, ',', '.'),
