@@ -23,6 +23,10 @@ class Investment extends Model
 
     public const ABROAD_NAME = 'Fora do Brasil';
 
+    public const REDEMPTION_GROUP_DAILY = 'daily';
+
+    public const REDEMPTION_GROUP_FIXED = 'fixed';
+
     protected $fillable = [
         'user_id',
         'type',
@@ -52,7 +56,7 @@ class Investment extends Model
     protected static function booted(): void
     {
         static::creating(function (Investment $investment): void {
-            if (! $investment->type?->isEstimatedControl()) {
+            if (!$investment->type?->isEstimatedControl()) {
                 return;
             }
 
@@ -128,6 +132,44 @@ class Investment extends Model
         }
 
         return ($this->rate_type ?? InvestmentRateType::Cdi)->formatRate($this->interest_rate);
+    }
+
+    public function hasDailyRedemption(): bool
+    {
+        return (bool) $this->daily_liquidity;
+    }
+
+    public function redemptionGroupKey(): string
+    {
+        return $this->hasDailyRedemption()
+            ? self::REDEMPTION_GROUP_DAILY
+            : self::REDEMPTION_GROUP_FIXED;
+    }
+
+    public function redemptionTypeLabel(): string
+    {
+        return $this->hasDailyRedemption() ? 'Resgate diário' : 'Data fixa';
+    }
+
+    public static function redemptionGroupExpression(): string
+    {
+        return "CASE WHEN daily_liquidity THEN '" . self::REDEMPTION_GROUP_DAILY . "' ELSE '" . self::REDEMPTION_GROUP_FIXED . "' END";
+    }
+
+    public static function redemptionOrderExpression(): string
+    {
+        return 'CASE WHEN daily_liquidity THEN 0 ELSE 1 END';
+    }
+
+    /**
+     * Resgate diário primeiro; depois data fixa, do vencimento mais próximo ao mais distante.
+     */
+    public function scopeOrderByRedemption(Builder $query): Builder
+    {
+        return $query
+            ->orderByRaw(self::redemptionOrderExpression())
+            ->orderBy('maturity_date')
+            ->orderBy('name');
     }
 
     public function scopeOfType(Builder $query, InvestmentType $type): Builder

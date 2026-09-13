@@ -232,3 +232,62 @@ test('renda variavel e fora do brasil podem coexistir', function () {
         ->and(Investment::query()->abroad()->count())->toBe(1)
         ->and((int) Investment::query()->sum('amount'))->toBe(300000);
 });
+
+test('investimentos sao ordenados por resgate diario e depois por vencimento mais proximo', function () {
+    $later = Investment::factory()->for($this->user)->withoutDailyLiquidity('2028-12-01')->create([
+        'name' => 'CDB Longo',
+        'application_date' => '2026-01-01',
+    ]);
+    $dailyB = Investment::factory()->for($this->user)->withDailyLiquidity()->create([
+        'name' => 'Tesouro Selic',
+        'application_date' => '2025-01-01',
+    ]);
+    $soon = Investment::factory()->for($this->user)->withoutDailyLiquidity('2026-10-01')->create([
+        'name' => 'LCI Curto',
+        'application_date' => '2024-01-01',
+    ]);
+    $dailyA = Investment::factory()->for($this->user)->withDailyLiquidity()->create([
+        'name' => 'CDB Liquidez',
+        'application_date' => '2026-06-01',
+    ]);
+
+    expect(Investment::query()->orderByRedemption()->pluck('name')->all())->toBe([
+        'CDB Liquidez',
+        'Tesouro Selic',
+        'LCI Curto',
+        'CDB Longo',
+    ]);
+
+    Livewire::test(ManageInvestments::class)
+        ->set('activeTab', InvestmentType::FixedIncome->value)
+        ->assertCanSeeTableRecords([$dailyA, $dailyB, $soon, $later], inOrder: true)
+        ->assertSee('Resgate diário')
+        ->assertSee('Data fixa');
+});
+
+test('resumo agrupado soma valores de resgate diario e de data fixa', function () {
+    Investment::factory()->for($this->user)->withDailyLiquidity()->create([
+        'name' => 'CDB Diario A',
+        'amount' => 1000000,
+    ]);
+    Investment::factory()->for($this->user)->withDailyLiquidity()->create([
+        'name' => 'CDB Diario B',
+        'amount' => 2000000,
+    ]);
+    Investment::factory()->for($this->user)->withoutDailyLiquidity('2026-10-01')->create([
+        'name' => 'LCI Curto',
+        'amount' => 400000,
+    ]);
+    Investment::factory()->for($this->user)->withoutDailyLiquidity('2028-12-01')->create([
+        'name' => 'CDB Longo',
+        'amount' => 500000,
+    ]);
+
+    Livewire::test(ManageInvestments::class)
+        ->set('activeTab', InvestmentType::FixedIncome->value)
+        ->assertSee('Resgate diário')
+        ->assertSee('Data fixa')
+        ->assertSee('30.000,00')
+        ->assertSee('9.000,00')
+        ->assertSee('39.000,00');
+});

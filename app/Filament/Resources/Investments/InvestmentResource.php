@@ -14,6 +14,8 @@ use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\Summarizers\Sum;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Query\Builder as QueryBuilder;
 use Leandrocfe\FilamentPtbrFormFields\Money;
 
 class InvestmentResource extends Resource
@@ -167,7 +169,38 @@ class InvestmentResource extends Resource
                     ->dateTime('d/m/Y H:i')
                     ->sortable(),
             ])
-            ->defaultSort('application_date', 'desc')
+            ->defaultSort(
+                fn (Builder $query): Builder => $query->orderByRedemption(),
+            )
+            ->defaultGroup('daily_liquidity')
+            ->groups([
+                Tables\Grouping\Group::make('daily_liquidity')
+                    ->label('Tipo de resgate')
+                    ->titlePrefixedWithLabel(false)
+                    ->getKeyFromRecordUsing(
+                        fn (Investment $record): string => $record->redemptionGroupKey()
+                    )
+                    ->getTitleFromRecordUsing(
+                        fn (Investment $record): string => $record->redemptionTypeLabel()
+                    )
+                    ->groupQueryUsing(
+                        fn (QueryBuilder $query): QueryBuilder => $query->groupByRaw(
+                            Investment::redemptionGroupExpression()
+                        )
+                    )
+                    ->orderQueryUsing(
+                        fn (Builder $query, string $direction): Builder => $query->orderByRaw(
+                            Investment::redemptionOrderExpression() . ' ' . ($direction === 'desc' ? 'DESC' : 'ASC')
+                        )
+                    )
+                    ->scopeQueryByKeyUsing(
+                        fn (Builder $query, string $key): Builder => $query->where(
+                            'daily_liquidity',
+                            $key === Investment::REDEMPTION_GROUP_DAILY
+                        )
+                    ),
+            ])
+            ->modifyQueryUsing(fn (Builder $query): Builder => $query->orderByRedemption())
             ->actions([
                 Tables\Actions\EditAction::make()
                     ->mutateFormDataUsing(function (array $data, Investment $record): array {
@@ -216,7 +249,7 @@ class InvestmentResource extends Resource
 
         $resolvedType = InvestmentType::tryFrom((string) $type);
 
-        return ! ($resolvedType?->isEstimatedControl() ?? false);
+        return !($resolvedType?->isEstimatedControl() ?? false);
     }
 
     private static function resolveRateType(mixed $rateType): InvestmentRateType
