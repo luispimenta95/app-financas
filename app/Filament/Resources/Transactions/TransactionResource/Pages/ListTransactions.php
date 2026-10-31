@@ -9,8 +9,11 @@ use App\Models\Transactions\Transaction;
 use Filament\Pages\Concerns\ExposesTableToWidgets;
 use Filament\Resources\Components\Tab;
 use Filament\Resources\Pages\ListRecords;
+use Filament\Tables\Table;
 use Hydrat\TableLayoutToggle\Concerns\HasToggleableTable;
+use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
 
 class ListTransactions extends ListRecords
 {
@@ -23,6 +26,96 @@ class ListTransactions extends ListRecords
      * (ou após troca de aba/filtro, quando o foco é resetado).
      */
     public bool $hasFocusedOnCurrentDate = false;
+
+    /**
+     * @var list<string>
+     */
+    public array $expandedStatements = [];
+
+    public function mount(): void
+    {
+        parent::mount();
+
+        $expandedId = session()->pull('expand_credit_card_statement');
+
+        if (filled($expandedId)) {
+            $this->expandedStatements = [(string) $expandedId];
+        }
+    }
+
+    public function toggleCreditCardStatement(string $transactionId): void
+    {
+        if ($this->isCreditCardStatementExpanded($transactionId)) {
+            $this->expandedStatements = array_values(array_filter(
+                $this->expandedStatements,
+                fn (string $id): bool => $id !== $transactionId
+            ));
+
+            return;
+        }
+
+        $this->expandedStatements[] = $transactionId;
+    }
+
+    public function isCreditCardStatementExpanded(string $transactionId): bool
+    {
+        return in_array($transactionId, $this->expandedStatements, true);
+    }
+
+    public function table(Table $table): Table
+    {
+        return parent::table($table)
+            ->recordAction(fn (Transaction $record): ?string => $this->hasExpandableStatement($record)
+                ? 'toggleCreditCardStatement'
+                : null)
+            ->recordUrl(function (Transaction $record): ?string {
+                if ($this->hasExpandableStatement($record)) {
+                    return null;
+                }
+
+                foreach (['view', 'edit'] as $page) {
+                    if (TransactionResource::{'can' . ucfirst($page)}($record)) {
+                        return TransactionResource::getUrl($page, ['record' => $record]);
+                    }
+                }
+
+                return null;
+            });
+    }
+
+    protected function hasExpandableStatement(Transaction $record): bool
+    {
+        return $record->creditCardPurchases->isNotEmpty()
+            || ($record->payslip !== null && ! $this->isGridLayout());
+    }
+
+    public function getTableRecordDetailView(Model $record): ?View
+    {
+        if (
+            $this->isGridLayout()
+            || ! $record instanceof Transaction
+            || ! $this->isCreditCardStatementExpanded($record->getKey())
+        ) {
+            return null;
+        }
+
+        if ($record->payslip !== null) {
+            return view('filament.tables.payslip-detail', [
+                'transaction' => $record,
+                'payslip' => $record->payslip,
+            ]);
+        }
+
+        if ($record->creditCardPurchases->isEmpty()) {
+            return null;
+        }
+
+        return view('filament.tables.credit-card-statement-detail', [
+            'transaction' => $record,
+            'statement' => $record->creditCardStatement,
+            'purchases' => $record->creditCardPurchases,
+        ]);
+    }
 
     public function rendering(): void
     {

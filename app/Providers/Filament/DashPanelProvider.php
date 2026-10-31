@@ -13,6 +13,7 @@ use Filament\Http\Middleware\DispatchServingFilamentEvent;
 use Filament\Panel;
 use Filament\PanelProvider;
 use Filament\Support\Colors\Color;
+use Filament\View\PanelsRenderHook;
 use Hydrat\TableLayoutToggle\TableLayoutTogglePlugin;
 use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
 use Illuminate\Cookie\Middleware\EncryptCookies;
@@ -48,6 +49,10 @@ class DashPanelProvider extends PanelProvider
             ])
             ->defaultThemeMode(ThemeMode::Dark)
             ->viteTheme('resources/css/filament/dash/theme.css')
+            ->renderHook(
+                PanelsRenderHook::STYLES_AFTER,
+                fn (): string => '<link rel="stylesheet" href="'.e(asset('css/statement-upload.css')).'">',
+            )
             ->defaultAvatarProvider(BoringAvatarsProvider::class)
             ->discoverResources(in: app_path('Filament/Resources'), for: 'App\\Filament\\Resources')
             ->discoverPages(in: app_path('Filament/Pages'), for: 'App\\Filament\\Pages')

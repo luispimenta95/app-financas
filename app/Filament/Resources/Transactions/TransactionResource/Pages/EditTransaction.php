@@ -56,6 +56,21 @@ class EditTransaction extends EditRecord
     protected function getHeaderActions(): array
     {
         return [
+            Actions\Action::make('uploadStatement')
+                ->label('Enviar fatura PDF')
+                ->icon('heroicon-m-document-arrow-up')
+                ->visible(fn (): bool => $this->record->isCreditCardBill())
+                ->url(fn (): string => TransactionResource::getUrl('uploadStatement', ['record' => $this->record])),
+            Actions\Action::make('uploadPayslip')
+                ->label('Enviar contracheque PDF')
+                ->icon('heroicon-m-document-currency-dollar')
+                ->visible(fn (): bool => $this->record->isPayslip())
+                ->url(fn (): string => TransactionResource::getUrl('uploadPayslip', ['record' => $this->record])),
+            Actions\Action::make('statement')
+                ->label('Gastos da fatura')
+                ->icon('heroicon-m-receipt-percent')
+                ->url(fn (): string => TransactionResource::getUrl('statement', ['record' => $this->record]))
+                ->visible(fn (): bool => $this->record->hasCreditCardStatement()),
             Actions\ViewAction::make(),
             Actions\DeleteAction::make(),
         ];

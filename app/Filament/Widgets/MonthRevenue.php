@@ -4,6 +4,7 @@ namespace App\Filament\Widgets;
 
 use App\Enums\TransactionType;
 use App\Models\Transactions\Transaction;
+use App\Services\Transactions\MonthlyBalanceService;
 use Filament\Support\RawJs;
 use Filament\Widgets\ChartWidget;
 use Filament\Widgets\Concerns\InteractsWithPageFilters;
@@ -16,7 +17,7 @@ class MonthRevenue extends ChartWidget
 
     protected static ?string $heading = 'Visão geral financeira';
 
-    protected static ?string $description = 'Receitas, despesas e saldo ao longo do período';
+    protected static ?string $description = 'Receitas, despesas e saldo ao longo do período. O saldo inclui a sobra positiva do mês anterior.';
 
     protected static ?int $sort = 2;
 
@@ -54,14 +55,17 @@ class MonthRevenue extends ChartWidget
         $incomeData = [];
         $expenseData = [];
         $balanceData = [];
+        $carry = (float) (app(MonthlyBalanceService::class)->carriedInto($startDate, $preview, $accountId) / 100);
 
         foreach ($labels as $key => $label) {
             $inc = (float) (($incomeMap[$key]->aggregate ?? 0) / 100);
             $exp = (float) (($expenseMap[$key]->aggregate ?? 0) / 100);
             $investmentImpact = (float) ((($investmentContributionMap[$key]->aggregate ?? 0) - ($investmentRedemptionMap[$key]->aggregate ?? 0)) / 100);
+            $net = $inc - $exp - $investmentImpact;
             $incomeData[] = $inc;
             $expenseData[] = $exp;
-            $balanceData[] = $inc - $exp - $investmentImpact;
+            $balanceData[] = $carry + $net;
+            $carry = max(0, $carry + $net);
         }
 
         return [

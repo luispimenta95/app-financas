@@ -1,0 +1,29 @@
+.fi-fo-file-upload,
+.fi-fo-statement-upload {
+    position: relative;
+    z-index: 0;
+    isolation: isolate;
+    width: 100%;
+}
+
+.fi-fo-file-upload > div,
+.fi-fo-statement-upload > div {
+    height: auto !important;
+    min-height: 5.5rem;
+}
+
+.fi-fo-file-upload .filepond--root,
+.fi-fo-statement-upload .filepond--root {
+    overflow: hidden !important;
+    margin-bottom: 0;
+}
+
+.fi-fo-file-upload .filepond--panel,
+.fi-fo-statement-upload .filepond--panel {
+    z-index: 0 !important;
+}
+
+.fi-fo-file-upload .filepond--browser,
+.fi-fo-statement-upload .filepond--browser {
+    z-index: 1;
+}
