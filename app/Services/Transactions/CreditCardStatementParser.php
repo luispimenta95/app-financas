@@ -6,6 +6,8 @@ use Illuminate\Support\Carbon;
 
 class CreditCardStatementParser
 {
+    private const LEFT_COLUMN_LIMIT = 60;
+
     /**
      * Valor cobrado na fatura, em centavos. Alguns PDFs do Itaú quebram os dígitos com espaços ("1.77 0,63").
      */
@@ -36,14 +38,14 @@ class CreditCardStatementParser
         $sort = 0;
         $seen = [];
 
-        foreach (preg_split('/\R/u', $text) as $line) {
-            $line = trim(preg_replace('/[ \t]+/u', ' ', $line) ?? '');
+        foreach (preg_split('/\R/u', $text) as $rawLine) {
+            $line = trim(preg_replace('/[ \t]+/u', ' ', $rawLine) ?? '');
 
             if ($line === '') {
                 continue;
             }
 
-            if ($this->isStopSection($line)) {
+            if ($this->isStopSection($rawLine)) {
                 break;
             }
 
@@ -201,7 +203,7 @@ class CreditCardStatementParser
             $month = $monthMap[mb_strtoupper($match[2])] ?? null;
 
             if ($month && $day >= 1 && $day <= 31) {
-                $year = $this->resolveYear($month, $referenceDate);
+                $year = $this->resolveYear($month, $day, $referenceDate);
 
                 if (checkdate($month, $day, $year)) {
                     return [sprintf('%04d-%02d-%02d', $year, $month, $day), $match[3]];
@@ -222,7 +224,7 @@ class CreditCardStatementParser
         $month = (int) $match[2];
         $year = isset($match[3])
             ? ((int) $match[3] < 100 ? 2000 + (int) $match[3] : (int) $match[3])
-            : $this->resolveYear($month, $referenceDate);
+            : $this->resolveYear($month, $day, $referenceDate);
 
         if ($month < 1 || $month > 12 || $day < 1 || $day > 31) {
             return null;
@@ -235,16 +237,20 @@ class CreditCardStatementParser
         return sprintf('%04d-%02d-%02d', $year, $month, $day);
     }
 
-    private function resolveYear(int $month, ?Carbon $referenceDate): int
+    /**
+     * Lançamentos sem ano nunca são posteriores ao vencimento da fatura;
+     * datas "à frente" (ex.: parcela 12/12 comprada em 23/10 numa fatura de 19/10) são do ano anterior.
+     */
+    private function resolveYear(int $month, int $day, ?Carbon $referenceDate): int
     {
-        $reference = $referenceDate ?? now();
+        $reference = ($referenceDate ?? now())->copy()->startOfDay();
         $year = (int) $reference->year;
 
-        if ($month > $reference->month + 1) {
-            return $year - 1;
+        if (!checkdate($month, $day, $year)) {
+            return $year;
         }
 
-        return $year;
+        return Carbon::create($year, $month, $day)->greaterThan($reference) ? $year - 1 : $year;
     }
 
     private function toCents(string $amount): int
@@ -252,14 +258,25 @@ class CreditCardStatementParser
         return (int) str($amount)->replace(['.', ','], ['', ''])->toInteger();
     }
 
-    private function isStopSection(string $line): bool
+    /**
+     * Em PDFs de duas colunas (pdftotext -layout), "Encargos cobrados" e "Novo teto de juros"
+     * podem aparecer na coluna da direita ao lado dos lançamentos; só encerra se o título
+     * estiver na coluna da esquerda.
+     */
+    private function isStopSection(string $rawLine): bool
     {
-        $normalized = mb_strtolower($line);
+        $normalized = mb_strtolower(str_replace("\t", '    ', $rawLine));
 
-        return (bool) preg_match(
+        if (!preg_match(
             '/compras parceladas|pr[oó]ximas faturas|limites de cr[eé]dito|encargos cobrados nesta fatura|novo teto de juros/u',
-            $normalized
-        );
+            $normalized,
+            $match,
+            PREG_OFFSET_CAPTURE
+        )) {
+            return false;
+        }
+
+        return mb_strlen(substr($normalized, 0, $match[0][1])) < self::LEFT_COLUMN_LIMIT;
     }
 
     private function isCategoryOnly(string $description): bool
