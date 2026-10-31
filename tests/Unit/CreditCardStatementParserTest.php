@@ -87,3 +87,26 @@ test('lê o total desta fatura mesmo com dígitos quebrados por espaço', functi
         ->and($parser->parseBillTotal("Valor do Documento                  R$ 4.001,39\n"))->toBe(400139)
         ->and($parser->parseBillTotal("17/08 SUPERMERCADO BH 189,90\n"))->toBeNull();
 });
+
+test('não encerra a leitura em títulos da coluna da direita e usa o ano anterior para datas após o vencimento', function () {
+    $text = implode("\n", [
+        '                 DATA                                                 VALOR EM R$',
+        '                 01/10    Pagamento via conta                              -377,09',
+        '                                                                                             Encargos cobrados nesta fatura',
+        '                 Lançamentos: compras e saques                                               Multa por atraso                                   2,00 %       0,00',
+        '                 DATA     ESTABELECIMENTO                             VALOR EM R$',
+        '                 23/10    LOJA VIAGEM 12/12                                 982,41',
+        '                                                                                             Novo teto de juros do cartão de crédito',
+        '                 11/11    ESCRITORIO 11/12                                  188,00',
+        '                 12/09    MERCADO EXEMPLO 01/06                              33,20       Juros e encargos financeiros até o momento                      0,00',
+        '                 Compras parceladas - próximas faturas                                       Fique atento aos encargos para o próximo',
+        '                 11/11    ESCRITORIO 12/12                                 188,00',
+    ]);
+
+    $items = (new CreditCardStatementParser)->parseText($text, Carbon::parse('2026-10-19'));
+
+    expect($items)->toHaveCount(3)
+        ->and(array_column($items, 'description'))->toBe(['LOJA VIAGEM', 'ESCRITORIO', 'MERCADO EXEMPLO'])
+        ->and(array_column($items, 'occurred_on'))->toBe(['2025-10-23', '2025-11-11', '2026-09-12'])
+        ->and(array_sum(array_column($items, 'amount')))->toBe(120361);
+});
