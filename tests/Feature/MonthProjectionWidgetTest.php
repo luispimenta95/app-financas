@@ -176,6 +176,109 @@ test('widget renderiza valores projetados do mes atual', function () {
         ->assertSee('R$ 2.000,00');
 });
 
+test('saldo positivo do mes anterior entra na projecao do mes atual', function () {
+    createProjectionTransaction([
+        'transaction_type' => TransactionType::Income,
+        'amount' => 50000,
+        'finished' => true,
+        'description' => 'Sobra de junho',
+        'date' => '2026-06-20',
+        'due_date' => '2026-06-20',
+        'payment_date' => '2026-06-20',
+    ]);
+
+    createProjectionTransaction([
+        'transaction_type' => TransactionType::Expense,
+        'amount' => 20000,
+        'finished' => true,
+        'description' => 'Gasto de junho',
+        'date' => '2026-06-25',
+        'due_date' => '2026-06-25',
+        'payment_date' => '2026-06-25',
+    ]);
+
+    createProjectionTransaction([
+        'transaction_type' => TransactionType::Income,
+        'amount' => 10000,
+        'finished' => true,
+        'description' => 'Receita de julho',
+        'date' => '2026-07-05',
+        'due_date' => '2026-07-05',
+        'payment_date' => '2026-07-05',
+    ]);
+
+    Livewire::test(MonthProjectionWidget::class)
+        ->assertSee('R$ 100,00')
+        ->assertSee('R$ 400,00')
+        ->assertSee('R$ 300,00 do mês anterior');
+});
+
+test('em 01/11 a projecao usa novembro e inclui sobra de outubro', function () {
+    Carbon::setTestNow('2026-11-01 12:00:00');
+
+    createProjectionTransaction([
+        'transaction_type' => TransactionType::Income,
+        'amount' => 26630,
+        'finished' => true,
+        'description' => 'Sobra de outubro',
+        'date' => '2026-10-30',
+        'due_date' => '2026-10-30',
+        'payment_date' => '2026-10-30',
+    ]);
+
+    createProjectionTransaction([
+        'transaction_type' => TransactionType::Income,
+        'amount' => 914345,
+        'finished' => false,
+        'payment_date' => null,
+        'description' => 'Receitas de novembro',
+        'date' => '2026-11-15',
+        'due_date' => '2026-11-15',
+    ]);
+
+    createProjectionTransaction([
+        'transaction_type' => TransactionType::Expense,
+        'amount' => 220760,
+        'finished' => false,
+        'payment_date' => null,
+        'description' => 'Despesas de novembro',
+        'date' => '2026-11-20',
+        'due_date' => '2026-11-20',
+    ]);
+
+    Livewire::test(MonthProjectionWidget::class)
+        ->assertSee('R$ 9.143,45')
+        ->assertSee('R$ 2.207,60')
+        ->assertSee('R$ 7.202,15')
+        ->assertSee('R$ 266,30 do mês anterior');
+});
+
+test('divida do mes anterior nao entra na projecao do mes atual', function () {
+    createProjectionTransaction([
+        'transaction_type' => TransactionType::Expense,
+        'amount' => 80000,
+        'finished' => true,
+        'description' => 'Estouro de junho',
+        'date' => '2026-06-10',
+        'due_date' => '2026-06-10',
+        'payment_date' => '2026-06-10',
+    ]);
+
+    createProjectionTransaction([
+        'transaction_type' => TransactionType::Income,
+        'amount' => 25000,
+        'finished' => true,
+        'description' => 'Receita de julho',
+        'date' => '2026-07-05',
+        'due_date' => '2026-07-05',
+        'payment_date' => '2026-07-05',
+    ]);
+
+    Livewire::test(MonthProjectionWidget::class)
+        ->assertSee('R$ 250,00')
+        ->assertDontSee('inclui');
+});
+
 test('saldo projetado e a diferenca entre receitas e despesas', function () {
     $investmentCategory = Category::query()
         ->where('user_id', $this->user->id)

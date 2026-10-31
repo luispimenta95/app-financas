@@ -94,3 +94,29 @@
 .dash-activity-dot {
     @apply absolute -left-[5px] top-1.5 h-2 w-2 rounded-full bg-blue-500 dark:bg-blue-400;
 }
+
+/*
+ * FilePond posiciona o input nativo e o painel em absolute.
+ * Sem isolamento, eles cobrem o campo seguinte (senha do PDF).
+ */
+.fi-fo-file-upload,
+.fi-fo-statement-upload {
+    @apply relative z-0 isolate w-full;
+}
+
+.fi-fo-file-upload > div,
+.fi-fo-statement-upload > div {
+    height: auto !important;
+    min-height: 5.5rem;
+}
+
+.fi-fo-file-upload .filepond--root,
+.fi-fo-statement-upload .filepond--root {
+    overflow: hidden !important;
+    margin-bottom: 0;
+}
+
+.fi-fo-file-upload .filepond--panel,
+.fi-fo-statement-upload .filepond--panel {
+    z-index: 0 !important;
+}

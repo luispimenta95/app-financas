@@ -6,6 +6,8 @@ use App\Enums\TransactionType;
 use App\Filament\Exports\Transactions\TransactionExporter;
 use App\Filament\Resources\Transactions\TransactionResource\Pages;
 use App\Filament\Resources\Transactions\TransactionResource\Widgets;
+use App\Forms\Components\NativeFileUpload;
+use App\Models\Transactions\Category;
 use App\Models\Transactions\Transaction;
 use App\Tables\Columns\MoneyColumn;
 use Filament\Forms;
@@ -48,6 +50,7 @@ class TransactionResource extends Resource
                                 titleAttribute: 'name',
                             )
                             ->native(false)
+                            ->live()
                             ->required(),
 
                         Money::make('amount')
@@ -62,6 +65,7 @@ class TransactionResource extends Resource
                             ->label('Descrição')
                             ->placeholder('Ex: Conta de Luz')
                             ->required()
+                            ->live(onBlur: true)
                             ->maxLength(255)
                             ->columnSpanFull()
                             ->helperText(function (?Transaction $record): ?string {
@@ -95,7 +99,8 @@ class TransactionResource extends Resource
                             ->helperText('Usada nos widgets de receitas, despesas e saldo. A listagem e o somatório usam o mês de vencimento.')
                             ->visible(fn (Forms\Get $get): bool => (bool) $get('finished'))
                             ->required(fn (Forms\Get $get): bool => (bool) $get('finished'))
-                            ->default(fn (Forms\Get $get): ?string => $get('due_date')),
+                            ->default(fn (Forms\Get $get): ?string => $get('due_date'))
+                            ->columnSpanFull(),
 
                         Forms\Components\Toggle::make('recurrence')
                             ->label('Recorrencia mensal')
@@ -130,13 +135,6 @@ class TransactionResource extends Resource
                             ->default(false)
                             ->visible(fn (Forms\Get $get, ?Transaction $record): bool => (bool) $get('recurrence') && $record === null),
 
-                        Forms\Components\FileUpload::make('attachment')
-                            ->label('Anexo')
-                            ->openable()
-                            ->deletable()
-                            ->acceptedFileTypes(['application/pdf', 'image/jpeg', 'image/png'])
-                            ->columnSpanFull(),
-
                         Forms\Components\Fieldset::make('Informações Adicionais')
                             ->columnSpanFull()
                             ->hidden(fn (?Transaction $record): bool => $record === null)
@@ -150,6 +148,15 @@ class TransactionResource extends Resource
                                     ->label('Atualizado em')
                                     ->content(fn ($record) => $record->updated_at->format('d/m/Y H:i')),
                             ]),
+                    ]),
+
+                Forms\Components\Section::make('Anexo')
+                    ->schema([
+                        NativeFileUpload::make('attachment')
+                            ->label('Anexo')
+                            ->disk('public')
+                            ->directory('transactions')
+                            ->acceptedFileTypes(['application/pdf', 'image/jpeg', 'image/png']),
                     ]),
             ]);
     }
@@ -168,7 +175,8 @@ class TransactionResource extends Resource
             ->defaultGroup('due_date')
             ->striped()
             ->modifyQueryUsing(fn (Builder $query): Builder => $query
-                ->with(['category', 'account'])
+                ->with(['category', 'account', 'creditCardPurchases', 'creditCardStatement', 'payslip.items'])
+                ->withCount('creditCardPurchases')
                 ->orderByRaw(Transaction::dueDateExpression() . ' ASC')
                 ->orderByRaw("case when transaction_type = 'income' then 0 else 1 end")
                 ->orderBy('created_at'))
@@ -287,10 +295,36 @@ class TransactionResource extends Resource
             ->paginated(false)
             ->actionsAlignment('right')
             ->actions([
+                Tables\Actions\Action::make('uploadStatement')
+                    ->label('Enviar fatura')
+                    ->icon('heroicon-m-document-arrow-up')
+                    ->color('info')
+                    ->iconButton()
+                    ->tooltip('Enviar fatura')
+                    ->visible(fn (Transaction $record): bool => $record->isCreditCardBill() && ! $record->hasCreditCardStatement())
+                    ->url(fn (Transaction $record): string => static::getUrl('uploadStatement', ['record' => $record])),
+                Tables\Actions\Action::make('uploadPayslip')
+                    ->label('Enviar contracheque')
+                    ->icon('heroicon-m-document-currency-dollar')
+                    ->color('success')
+                    ->iconButton()
+                    ->tooltip('Enviar contracheque')
+                    ->visible(fn (Transaction $record): bool => $record->isPayslip() && ! $record->hasPayslip())
+                    ->url(fn (Transaction $record): string => static::getUrl('uploadPayslip', ['record' => $record])),
+                Tables\Actions\Action::make('statement')
+                    ->label('Gastos')
+                    ->icon('heroicon-m-receipt-percent')
+                    ->color('gray')
+                    ->iconButton()
+                    ->tooltip('Gastos da fatura')
+                    ->url(fn (Transaction $record): string => static::getUrl('statement', ['record' => $record]))
+                    ->visible(fn (Transaction $record): bool => $record->hasCreditCardStatement()),
                 Tables\Actions\ViewAction::make()
+                    ->label('Visualizar')
                     ->iconButton()
                     ->tooltip('Visualizar'),
                 Tables\Actions\EditAction::make()
+                    ->label('Editar')
                     ->iconButton()
                     ->tooltip('Editar'),
             ])
@@ -338,13 +372,7 @@ class TransactionResource extends Resource
                     ->badge()
                     ->color('gray'),
 
-                Tables\Columns\TextColumn::make('description')
-                    ->label('Descrição')
-                    ->searchable()
-                    ->weight(FontWeight::SemiBold)
-                    ->size(TextColumnSize::Large)
-                    ->getStateUsing(fn (Transaction $record): string => $record->displayTitle())
-                    ->wrap(),
+                static::getDescriptionColumn(),
 
                 Tables\Columns\Layout\Split::make([
                     Tables\Columns\TextColumn::make('category.name')
@@ -468,6 +496,14 @@ class TransactionResource extends Resource
         ];
     }
 
+    public static function getDescriptionColumn(): Tables\Columns\ViewColumn
+    {
+        return Tables\Columns\ViewColumn::make('description')
+            ->label('Descrição')
+            ->searchable()
+            ->view('filament.tables.columns.transaction-description');
+    }
+
     public static function getRelations(): array
     {
         return [
@@ -480,7 +516,10 @@ class TransactionResource extends Resource
         return [
             'index' => Pages\ListTransactions::route('/'),
             'create' => Pages\CreateTransaction::route('/create'),
+            'uploadStatement' => Pages\UploadCreditCardStatement::route('/{record}/enviar-fatura'),
+            'uploadPayslip' => Pages\UploadPayslip::route('/{record}/enviar-contracheque'),
             'view' => Pages\ViewTransaction::route('/{record}'),
+            'statement' => Pages\ListCreditCardPurchases::route('/{record}/fatura'),
             'edit' => Pages\EditTransaction::route('/{record}/edit'),
         ];
     }
@@ -495,6 +534,21 @@ class TransactionResource extends Resource
     public static function getNavigationBadge(): ?string
     {
         return static::getModel()::count();
+    }
+
+    public static function acceptsCreditCardStatement(mixed $categoryId, mixed $description): bool
+    {
+        if (!is_string($categoryId) || $categoryId === '') {
+            return false;
+        }
+
+        $category = Category::query()->find($categoryId);
+
+        if (!$category?->isCreditCard()) {
+            return false;
+        }
+
+        return !str((string) $description)->lower()->contains('adiantamento');
     }
 
     public static function normalizeDateInput(mixed $value): ?string

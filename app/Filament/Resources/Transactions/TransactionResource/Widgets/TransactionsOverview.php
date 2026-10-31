@@ -4,6 +4,7 @@ namespace App\Filament\Resources\Transactions\TransactionResource\Widgets;
 
 use App\Enums\TransactionType;
 use App\Models\Transactions\Transaction;
+use App\Services\Transactions\MonthlyBalanceService;
 use Filament\Widgets\Concerns\InteractsWithPageTable;
 use Filament\Widgets\StatsOverviewWidget as BaseWidget;
 use Filament\Widgets\StatsOverviewWidget\Stat;
@@ -117,9 +118,36 @@ class TransactionsOverview extends BaseWidget
 
     private function getCurrentBalance($startDate, $endDate, bool $preview, array $categoriesIds, array $accountsIds)
     {
-        return $this->getIncomes($startDate, $endDate, $preview, $categoriesIds, $accountsIds)
+        $balance = $this->getIncomes($startDate, $endDate, $preview, $categoriesIds, $accountsIds)
             - $this->getExpenses($startDate, $endDate, $preview, $categoriesIds, $accountsIds)
             - $this->getInvestmentBalanceImpact($startDate, $endDate, $preview, $categoriesIds, $accountsIds);
+
+        return $balance + $this->carryoverInto($startDate, $preview, $categoriesIds, $accountsIds);
+    }
+
+    private function carryoverInto(?string $startDate, bool $preview, array $categoriesIds, array $accountsIds): int
+    {
+        if ($startDate === null || $startDate === '') {
+            return 0;
+        }
+
+        if ($this->tableSearch !== '' && $this->tableSearch !== null) {
+            return 0;
+        }
+
+        if ($categoriesIds !== []) {
+            return 0;
+        }
+
+        if (Carbon::parse($startDate)->day !== 1) {
+            return 0;
+        }
+
+        return app(MonthlyBalanceService::class)->carriedInto(
+            $startDate,
+            $preview,
+            $accountsIds === [] ? null : $accountsIds,
+        );
     }
 
     private function getInvestmentBalanceImpact(

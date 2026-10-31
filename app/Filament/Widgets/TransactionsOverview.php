@@ -4,6 +4,7 @@ namespace App\Filament\Widgets;
 
 use App\Enums\TransactionType;
 use App\Models\Transactions\Transaction;
+use App\Services\Transactions\MonthlyBalanceService;
 use Filament\Widgets\Concerns\InteractsWithPageFilters;
 use Filament\Widgets\StatsOverviewWidget as BaseWidget;
 use Filament\Widgets\StatsOverviewWidget\Stat;
@@ -28,7 +29,8 @@ class TransactionsOverview extends BaseWidget
         $income = $this->getIncomes($startDate, $endDate, $preview, $accountId);
         $expense = $this->getExpenses($startDate, $endDate, $preview, $accountId);
         $investmentImpact = $this->getInvestmentBalanceImpact($startDate, $endDate, $preview, $accountId);
-        $balance = $income - $expense - $investmentImpact;
+        $carryover = $this->carryoverInto($startDate, $preview, $accountId);
+        $balance = $income - $expense - $investmentImpact + $carryover;
         $investments = $this->getInvestments($startDate, $endDate, $preview, $accountId);
 
         $prevIncome = $this->getIncomes($previous['start'], $previous['end'], $preview, $accountId);
@@ -62,6 +64,9 @@ class TransactionsOverview extends BaseWidget
                 icon: 'heroicon-m-building-library',
                 color: 'primary',
                 chart: $this->getBalanceSparkline($startDate, $endDate, $preview, $accountId),
+                extraDescription: $carryover > 0
+                    ? 'Inclui '.$this->formatCurrency($carryover).' do mês anterior'
+                    : null,
             ),
             $this->buildStat(
                 label: 'Aportes',
@@ -82,6 +87,7 @@ class TransactionsOverview extends BaseWidget
         string $color,
         array $chart,
         bool $invertTrend = false,
+        ?string $extraDescription = null,
     ): Stat {
         $change = $this->percentageChange($value, $previous);
         $isUp = $change >= 0;
@@ -95,6 +101,10 @@ class TransactionsOverview extends BaseWidget
                 abs($change)
             );
 
+        if ($extraDescription) {
+            $description .= ' · '.$extraDescription;
+        }
+
         return Stat::make($label, $this->formatCurrency($value))
             ->icon($icon)
             ->description($description)
@@ -103,6 +113,17 @@ class TransactionsOverview extends BaseWidget
             ->chart($chart)
             ->chartColor($color)
             ->color($color);
+    }
+
+    private function carryoverInto(mixed $startDate, bool $preview, ?string $accountId): int
+    {
+        $start = Carbon::parse($startDate);
+
+        if ($start->day !== 1) {
+            return 0;
+        }
+
+        return app(MonthlyBalanceService::class)->carriedInto($start, $preview, $accountId);
     }
 
     private function getPreviousPeriod(mixed $startDate, mixed $endDate): array
