@@ -4,6 +4,7 @@ namespace App\Filament\Widgets;
 
 use App\Enums\TransactionType;
 use App\Models\Transactions\Transaction;
+use App\Services\Transactions\MonthlyBalanceService;
 use Filament\Widgets\StatsOverviewWidget as BaseWidget;
 use Filament\Widgets\StatsOverviewWidget\Stat;
 
@@ -13,7 +14,7 @@ class MonthProjectionWidget extends BaseWidget
 
     protected ?string $heading = 'Projeção do mês';
 
-    protected ?string $description = 'Valor esperado se todas as transações do mês atual forem finalizadas neste mês.';
+    protected ?string $description = 'Valor esperado se todas as transações do mês atual forem finalizadas neste mês. Sobra positiva do mês anterior entra neste mês.';
 
     /**
      * Widget de projeção futura: só faz sentido sem filtros,
@@ -37,7 +38,14 @@ class MonthProjectionWidget extends BaseWidget
 
         $income = $this->sumAmount(TransactionType::Income, $startDate, $endDate);
         $expense = $this->sumAmount(TransactionType::Expense, $startDate, $endDate);
-        $balance = $income - $expense;
+        $carryover = app(MonthlyBalanceService::class)->carriedInto($startDate, preview: true);
+        $balance = $income - $expense + $carryover;
+
+        $balanceDescription = $balance >= 0 ? 'Quanto você terá no mês' : 'Quanto você deverá no mês';
+
+        if ($carryover > 0) {
+            $balanceDescription .= ' · inclui '.$this->formatCurrency($carryover).' do mês anterior';
+        }
 
         return [
             Stat::make('Receitas projetadas', $this->formatCurrency($income))
@@ -51,7 +59,7 @@ class MonthProjectionWidget extends BaseWidget
             Stat::make('Saldo projetado', $this->formatCurrency($balance))
                 ->icon('heroicon-m-calendar-days')
                 ->color($balance >= 0 ? 'success' : 'danger')
-                ->description($balance >= 0 ? 'Quanto você terá no mês' : 'Quanto você deverá no mês'),
+                ->description($balanceDescription),
         ];
     }
 

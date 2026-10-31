@@ -22,6 +22,12 @@ class Category extends Model
 
     public const INVESTMENTS_SLUG = 'investimentos';
 
+    public const CREDIT_CARD_NAME = 'Cartão de Crédito';
+
+    public const CREDIT_CARD_SLUG = 'cartao-de-credito';
+
+    public const SALARY_SLUG = 'salario';
+
     protected $fillable = [
         'user_id',
         'name',
@@ -43,5 +49,15 @@ class Category extends Model
     public function isInvestments(): bool
     {
         return $this->slug === static::INVESTMENTS_SLUG;
+    }
+
+    public function isCreditCard(): bool
+    {
+        return $this->slug === static::CREDIT_CARD_SLUG;
+    }
+
+    public function isSalary(): bool
+    {
+        return $this->slug === static::SALARY_SLUG;
     }
 }

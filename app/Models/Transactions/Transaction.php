@@ -14,6 +14,8 @@ use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Carbon;
 
 #[ScopedBy([TenantScope::class])]
@@ -65,6 +67,59 @@ class Transaction extends Model
     public function category(): BelongsTo
     {
         return $this->belongsTo(Category::class);
+    }
+
+    public function creditCardStatement(): HasOne
+    {
+        return $this->hasOne(CreditCardStatement::class);
+    }
+
+    public function creditCardPurchases(): HasMany
+    {
+        return $this->hasMany(CreditCardPurchase::class)->orderBy('sort_order')->orderBy('occurred_on');
+    }
+
+    public function payslip(): HasOne
+    {
+        return $this->hasOne(Payslip::class);
+    }
+
+    public function isPayslip(): bool
+    {
+        $this->loadMissing('category');
+
+        return (bool) $this->category?->isSalary();
+    }
+
+    public function hasPayslip(): bool
+    {
+        return $this->isPayslip() && $this->payslip !== null;
+    }
+
+    public function isCreditCardAdvance(): bool
+    {
+        return str($this->description ?? '')->lower()->contains('adiantamento');
+    }
+
+    public function isCreditCardBill(): bool
+    {
+        $this->loadMissing('category');
+
+        return (bool) $this->category?->isCreditCard()
+            && !$this->isCreditCardAdvance();
+    }
+
+    public function hasCreditCardStatement(): bool
+    {
+        if (!$this->isCreditCardBill()) {
+            return false;
+        }
+
+        if (array_key_exists('credit_card_purchases_count', $this->attributes)) {
+            return (int) $this->credit_card_purchases_count > 0;
+        }
+
+        return $this->creditCardPurchases()->exists();
     }
 
     protected function installmentNumber(): Attribute
