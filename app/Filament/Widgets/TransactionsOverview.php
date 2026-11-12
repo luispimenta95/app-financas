@@ -31,14 +31,12 @@ class TransactionsOverview extends BaseWidget
         $investmentImpact = $this->getInvestmentBalanceImpact($startDate, $endDate, $preview, $accountId);
         $carryover = $this->carryoverInto($startDate, $preview, $accountId);
         $balance = $income - $expense - $investmentImpact + $carryover;
-        $investments = $this->getInvestments($startDate, $endDate, $preview, $accountId);
+        $redemptions = $this->sumInvestmentAmount($startDate, $endDate, $preview, $accountId, TransactionType::Income);
 
         $prevIncome = $this->getIncomes($previous['start'], $previous['end'], $preview, $accountId);
         $prevExpense = $this->getExpenses($previous['start'], $previous['end'], $preview, $accountId);
         $prevInvestmentImpact = $this->getInvestmentBalanceImpact($previous['start'], $previous['end'], $preview, $accountId);
         $prevBalance = $prevIncome - $prevExpense - $prevInvestmentImpact;
-        $prevInvestments = $this->getInvestments($previous['start'], $previous['end'], $preview, $accountId);
-
         return [
             $this->buildStat(
                 label: 'Receitas',
@@ -70,11 +68,14 @@ class TransactionsOverview extends BaseWidget
             ),
             $this->buildStat(
                 label: 'Aportes',
-                value: $investments,
-                previous: $prevInvestments,
+                value: $investmentImpact,
+                previous: $prevInvestmentImpact,
                 icon: 'heroicon-m-chart-bar-square',
                 color: 'info',
-                chart: $this->getInvestmentSparkline($startDate, $endDate, $preview, $accountId),
+                chart: $this->getInvestmentBalanceSparkline($startDate, $endDate, $preview, $accountId),
+                extraDescription: $redemptions > 0
+                    ? 'Líquido de '.$this->formatCurrency($redemptions).' em resgates'
+                    : null,
             ),
         ];
     }
@@ -181,17 +182,6 @@ class TransactionsOverview extends BaseWidget
             ->sum('amount');
     }
 
-    private function getInvestments(mixed $startDate, mixed $endDate, bool $preview, ?string $accountId): int
-    {
-        return $this->sumInvestmentAmount(
-            $startDate,
-            $endDate,
-            $preview,
-            $accountId,
-            TransactionType::Expense,
-        );
-    }
-
     private function getInvestmentBalanceImpact(mixed $startDate, mixed $endDate, bool $preview, ?string $accountId): int
     {
         return $this->sumInvestmentAmount($startDate, $endDate, $preview, $accountId, TransactionType::Expense)
@@ -296,11 +286,6 @@ class TransactionsOverview extends BaseWidget
             ->all();
 
         return $this->padSparkline($rows);
-    }
-
-    private function getInvestmentSparkline(mixed $startDate, mixed $endDate, bool $preview, ?string $accountId): array
-    {
-        return $this->getInvestmentSparklineByType($startDate, $endDate, $preview, $accountId, TransactionType::Expense);
     }
 
     private function padSparkline(array $rows): array

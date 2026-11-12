@@ -24,6 +24,11 @@ class Dashboard extends BaseDashboard
 
     protected static ?string $navigationIcon = 'heroicon-m-home';
 
+    public function persistsFiltersInSession(): bool
+    {
+        return false;
+    }
+
     /**
      * @return array<class-string | WidgetConfiguration>
      */
@@ -92,9 +97,9 @@ class Dashboard extends BaseDashboard
 
     private function resetFilterFormFields(): Closure
     {
-        return function (Livewire $livewire) {
-            collect($livewire->filters)
-                ->map(fn ($filter, $key) => $livewire->filters[$key] = null);
+        return function () {
+            $this->getFiltersForm()->fill();
+            $this->updatedFilters();
 
             Notification::make()
                 ->title('Filtros limpados com sucesso!')
