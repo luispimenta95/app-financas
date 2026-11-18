@@ -3,48 +3,39 @@
 namespace App\Filament\Widgets;
 
 use App\Enums\TransactionType;
+use App\Filament\Widgets\Concerns\InteractsWithDashboardPeriod;
 use App\Models\Transactions\Transaction;
 use App\Services\Transactions\MonthlyBalanceService;
 use Filament\Support\RawJs;
 use Filament\Widgets\ChartWidget;
-use Filament\Widgets\Concerns\InteractsWithPageFilters;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Carbon;
 
 class MonthRevenue extends ChartWidget
 {
-    use InteractsWithPageFilters;
+    use InteractsWithDashboardPeriod;
 
     protected static ?string $heading = 'Visão geral financeira';
 
     protected static ?string $description = 'Receitas, despesas e saldo ao longo do período. O saldo inclui a sobra positiva do mês anterior.';
 
-    protected static ?int $sort = 2;
+    protected static ?int $sort = 6;
 
-    protected int|string|array $columnSpan = [
-        'md' => 2,
-        'xl' => 2,
-    ];
+    protected int|string|array $columnSpan = 'full';
 
-    protected static ?string $maxHeight = '320px';
+    protected static ?string $maxHeight = 'min(380px, 55vw)';
 
     protected function getData(): array
     {
-        $startDate = $this->filters['startDate'] ?? now()->startOfYear()->toDateString();
-        $endDate = $this->filters['endDate'] ?? now()->endOfYear()->toDateString();
-        $accountId = $this->filters['accountId'] ?? null;
-        $preview = (bool) ($this->filters['preview'] ?? false);
+        // Sem filtro, mostra o ano inteiro para o gráfico ter mais contexto
+        [$startDate, $endDate] = $this->hasPeriodFilter()
+            ? $this->getPeriod()
+            : [now()->startOfYear()->toDateString(), now()->endOfYear()->toDateString()];
 
-        // Default to year view for a richer chart when no filter is set
-        if (!($this->filters['startDate'] ?? null) && !($this->filters['endDate'] ?? null)) {
-            $startDate = now()->startOfYear()->toDateString();
-            $endDate = now()->endOfYear()->toDateString();
-        }
-
-        $income = $this->getPeriodAmount($startDate, $endDate, $preview, $accountId, TransactionType::Income);
-        $expense = $this->getPeriodAmount($startDate, $endDate, $preview, $accountId, TransactionType::Expense);
-        $investmentContributions = $this->getPeriodInvestmentAmount($startDate, $endDate, $preview, $accountId, TransactionType::Expense);
-        $investmentRedemptions = $this->getPeriodInvestmentAmount($startDate, $endDate, $preview, $accountId, TransactionType::Income);
+        $income = $this->getPeriodAmount($startDate, $endDate, TransactionType::Income);
+        $expense = $this->getPeriodAmount($startDate, $endDate, TransactionType::Expense);
+        $investmentContributions = $this->getPeriodInvestmentAmount($startDate, $endDate, TransactionType::Expense);
+        $investmentRedemptions = $this->getPeriodInvestmentAmount($startDate, $endDate, TransactionType::Income);
 
         $labels = $this->buildMonthLabels($startDate, $endDate);
         $incomeMap = $income->keyBy('new_date');
@@ -55,7 +46,7 @@ class MonthRevenue extends ChartWidget
         $incomeData = [];
         $expenseData = [];
         $balanceData = [];
-        $carry = (float) (app(MonthlyBalanceService::class)->carriedInto($startDate, $preview, $accountId) / 100);
+        $carry = (float) (app(MonthlyBalanceService::class)->carriedInto($startDate) / 100);
 
         foreach ($labels as $key => $label) {
             $inc = (float) (($incomeMap[$key]->aggregate ?? 0) / 100);
@@ -117,7 +108,7 @@ class MonthRevenue extends ChartWidget
         return $labels;
     }
 
-    private function getPeriodAmount(string $startDate, string $endDate, bool $preview, ?string $accountId, TransactionType $transactionType): Collection
+    private function getPeriodAmount(string $startDate, string $endDate, TransactionType $transactionType): Collection
     {
         $cashFlowDate = Transaction::cashFlowDateExpression();
 
@@ -129,16 +120,12 @@ class MonthRevenue extends ChartWidget
             ")
             ->where('transaction_type', $transactionType)
             ->withoutInvestments()
-            ->forCashFlowPeriod($startDate, $endDate, $preview);
-
-        if ($accountId) {
-            $query->where('account_id', $accountId);
-        }
+            ->forCashFlowPeriod($startDate, $endDate);
 
         return $query->groupBy('year', 'month')->get();
     }
 
-    private function getPeriodInvestmentAmount(string $startDate, string $endDate, bool $preview, ?string $accountId, TransactionType $transactionType): Collection
+    private function getPeriodInvestmentAmount(string $startDate, string $endDate, TransactionType $transactionType): Collection
     {
         $cashFlowDate = Transaction::cashFlowDateExpression();
 
@@ -150,11 +137,7 @@ class MonthRevenue extends ChartWidget
             ")
             ->onlyInvestments()
             ->where('transaction_type', $transactionType)
-            ->forCashFlowPeriod($startDate, $endDate, $preview);
-
-        if ($accountId) {
-            $query->where('account_id', $accountId);
-        }
+            ->forCashFlowPeriod($startDate, $endDate);
 
         return $query->groupBy('year', 'month')->get();
     }

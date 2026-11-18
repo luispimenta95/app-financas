@@ -49,11 +49,90 @@
 
 /*
  * Mantém o resumo Receitas/Despesas/Saldo visível ao rolar a lista de transações.
- * O topbar do Filament tem h-16 (4rem); o widget fica logo abaixo dele.
+ * No mobile o sticky consome muita tela — só ativa a partir de md.
  */
 .fi-page-header-widgets {
-    @apply sticky z-10 bg-slate-50/95 py-3 backdrop-blur-md dark:bg-slate-950/95;
-    top: 4rem;
+    @apply z-10 bg-slate-50/95 py-3 dark:bg-slate-950/95;
+}
+
+@media (min-width: 768px) {
+    .fi-page-header-widgets {
+        @apply sticky backdrop-blur-md;
+        top: 4rem;
+    }
+}
+
+/* Tabelas: rolagem horizontal no celular em vez de esmagar colunas */
+.fi-ta-ctn {
+    @apply max-w-full overflow-x-auto;
+}
+
+.fi-ta-table {
+    @apply min-w-full;
+}
+
+@media (max-width: 767px) {
+    .fi-ta-table {
+        min-width: 28rem;
+    }
+
+    .fi-main {
+        @apply px-0;
+    }
+
+    .fi-main > section,
+    .fi-page > section {
+        @apply px-3;
+    }
+
+    .fi-header-heading {
+        @apply text-xl;
+    }
+
+    .fi-wi-chart {
+        @apply overflow-x-auto;
+    }
+
+    .fi-wi-chart canvas {
+        max-width: 100% !important;
+    }
+
+    .fi-fo-date-time-picker-display,
+    .fi-fo-date-picker input,
+    input[type='date'] {
+        @apply min-w-0 w-full max-w-full;
+    }
+
+    /* Filtros do dashboard: ações e campos empilham sem estourar */
+    .fi-fo-section-header {
+        @apply flex-col items-stretch gap-2;
+    }
+
+    .fi-fo-section-header-actions {
+        @apply w-full justify-start;
+    }
+
+    .fi-wi-stats-overview-stats-ctn {
+        @apply gap-3;
+    }
+
+    .fi-section-content-ctn,
+    .fi-wi-widget {
+        @apply overflow-x-auto;
+    }
+
+    .fi-ta-actions {
+        @apply flex-wrap;
+    }
+
+    .fi-ta-group-header {
+        scroll-margin-top: 5rem;
+    }
+
+    /* Perfil: aside vira bloco único no celular */
+    .fi-fo-section-aside-content {
+        @apply w-full;
+    }
 }
 
 .fi-ta-group-header {

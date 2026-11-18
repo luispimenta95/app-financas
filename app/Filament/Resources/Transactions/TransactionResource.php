@@ -38,7 +38,10 @@ class TransactionResource extends Resource
         return $form
             ->schema([
                 Forms\Components\Section::make('Transação')
-                    ->columns(2)
+                    ->columns([
+                        'default' => 1,
+                        'md' => 2,
+                    ])
                     ->schema([
                         Forms\Components\Hidden::make('account_id')
                             ->default(fn (): ?string => auth()->user()?->accounts()->value('id'))
@@ -60,7 +63,29 @@ class TransactionResource extends Resource
                             ->dehydrateStateUsing(fn (?string $state): ?int => str($state)->replace(['.', ','], '')->toInteger()),
                         Forms\Components\DatePicker::make('due_date')
                             ->label('Data de vencimento')
-                            ->required(),
+                            ->displayFormat('d/m/Y')
+                            ->format('Y-m-d')
+                            ->native(false)
+                            ->afterStateHydrated(function (Forms\Components\DatePicker $component, mixed $state): void {
+                                $component->state(static::normalizeDateInput($state));
+                            })
+                            ->dehydrateStateUsing(fn (mixed $state): ?string => static::normalizeDateInput($state))
+                            ->required(fn (?Transaction $record): bool => $record === null)
+                            ->rule(function (?Transaction $record) {
+                                return function (string $attribute, mixed $value, \Closure $fail) use ($record): void {
+                                    if (blank($value)) {
+                                        if ($record === null) {
+                                            $fail('Informe a data de vencimento.');
+                                        }
+
+                                        return;
+                                    }
+
+                                    if (static::normalizeDateInput($value) === null) {
+                                        $fail('Use o formato de data dd/mm/aaaa.');
+                                    }
+                                };
+                            }),
                         Forms\Components\TextInput::make('description')
                             ->label('Descrição')
                             ->placeholder('Ex: Conta de Luz')
@@ -96,10 +121,28 @@ class TransactionResource extends Resource
 
                         Forms\Components\DatePicker::make('payment_date')
                             ->label('Data de pagamento')
+                            ->displayFormat('d/m/Y')
+                            ->format('Y-m-d')
+                            ->native(false)
+                            ->afterStateHydrated(function (Forms\Components\DatePicker $component, mixed $state): void {
+                                $component->state(static::normalizeDateInput($state));
+                            })
+                            ->dehydrateStateUsing(fn (mixed $state): ?string => static::normalizeDateInput($state))
                             ->helperText('Usada nos widgets de receitas, despesas e saldo. A listagem e o somatório usam o mês de vencimento.')
                             ->visible(fn (Forms\Get $get): bool => (bool) $get('finished'))
                             ->required(fn (Forms\Get $get): bool => (bool) $get('finished'))
                             ->default(fn (Forms\Get $get): ?string => $get('due_date'))
+                            ->rule(function () {
+                                return function (string $attribute, mixed $value, \Closure $fail): void {
+                                    if (blank($value)) {
+                                        return;
+                                    }
+
+                                    if (static::normalizeDateInput($value) === null) {
+                                        $fail('Use o formato de data dd/mm/aaaa.');
+                                    }
+                                };
+                            })
                             ->columnSpanFull(),
 
                         Forms\Components\Toggle::make('recurrence')
@@ -138,7 +181,10 @@ class TransactionResource extends Resource
                         Forms\Components\Fieldset::make('Informações Adicionais')
                             ->columnSpanFull()
                             ->hidden(fn (?Transaction $record): bool => $record === null)
-                            ->columns(2)
+                            ->columns([
+                                'default' => 1,
+                                'md' => 2,
+                            ])
                             ->schema([
                                 Forms\Components\Placeholder::make('created_at')
                                     ->label('Criado em')
@@ -444,7 +490,8 @@ class TransactionResource extends Resource
                 ->placeholder('—')
                 ->badge()
                 ->color('gray')
-                ->sortable(),
+                ->sortable()
+                ->visibleFrom('md'),
             Tables\Columns\TextColumn::make('description')
                 ->label('Descrição')
                 ->searchable()
@@ -462,13 +509,15 @@ class TransactionResource extends Resource
                 ->color(fn (Transaction $record) => $record->category?->color
                     ? Color::hex($record->category->color)
                     : 'gray')
-                ->toggleable(),
+                ->toggleable()
+                ->visibleFrom('md'),
             Tables\Columns\TextColumn::make('transaction_type')
                 ->label('Tipo')
                 ->badge()
                 ->iconPosition(IconPosition::After)
                 ->alignCenter()
-                ->toggleable(),
+                ->toggleable()
+                ->visibleFrom('lg'),
             Tables\Columns\TextColumn::make('account.name')
                 ->label('Conta')
                 ->searchable()
@@ -575,6 +624,13 @@ class TransactionResource extends Resource
             $year = (int) $matches[1];
             $month = (int) $matches[2];
             $day = (int) $matches[3];
+        } elseif (preg_match('/^(\d{4})-(\d{2})-(\d{2})[T\s]/', $value)) {
+            // Eloquent/Filament serializam casts date como ISO (ex.: 2026-12-30T03:00:00.000000Z)
+            try {
+                return Carbon::parse($value)->toDateString();
+            } catch (\Throwable) {
+                return null;
+            }
         } else {
             return null;
         }

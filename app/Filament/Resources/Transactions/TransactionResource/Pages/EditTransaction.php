@@ -15,7 +15,12 @@ class EditTransaction extends EditRecord
     {
         $data['due_date'] = TransactionResource::normalizeDateInput(
             $data['due_date'] ?? ($data['date'] ?? null)
-        );
+        ) ?? $this->record?->displayDueDate()?->toDateString();
+
+        $data['payment_date'] = TransactionResource::normalizeDateInput(
+            $data['payment_date'] ?? null
+        ) ?? $this->record?->payment_date?->toDateString();
+
         $data['description'] = InstallmentTitle::baseDescription($data['description'] ?? null);
 
         return $data;
@@ -23,16 +28,28 @@ class EditTransaction extends EditRecord
 
     protected function mutateFormDataBeforeSave(array $data): array
     {
-        $dueDate = TransactionResource::normalizeDateInput($data['due_date'] ?? ($data['date'] ?? null));
+        $rawDue = $data['due_date'] ?? ($data['date'] ?? null);
+        $dueDate = TransactionResource::normalizeDateInput($rawDue);
+
+        // Em edição, campo vazio preserva a data do cadastro; valor inválido já falhou na validação.
+        if ($dueDate === null && blank($rawDue)) {
+            $dueDate = $this->record?->displayDueDate()?->toDateString();
+        }
+
         $data['due_date'] = $dueDate;
         $data['date'] = $dueDate;
 
         if (!($data['finished'] ?? false)) {
             $data['payment_date'] = null;
         } else {
-            $data['payment_date'] = TransactionResource::normalizeDateInput(
-                $data['payment_date'] ?? $dueDate
-            ) ?? $dueDate;
+            $rawPayment = $data['payment_date'] ?? null;
+            $paymentDate = TransactionResource::normalizeDateInput($rawPayment);
+
+            if ($paymentDate === null && blank($rawPayment)) {
+                $paymentDate = $this->record?->payment_date?->toDateString() ?? $dueDate;
+            }
+
+            $data['payment_date'] = $paymentDate ?? $dueDate;
         }
 
         if (!($data['recurrence'] ?? false)) {

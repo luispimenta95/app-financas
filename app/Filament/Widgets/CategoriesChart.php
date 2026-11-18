@@ -3,38 +3,32 @@
 namespace App\Filament\Widgets;
 
 use App\Enums\TransactionType;
+use App\Filament\Widgets\Concerns\InteractsWithDashboardPeriod;
 use App\Models\Transactions\Transaction;
 use Filament\Support\RawJs;
 use Filament\Widgets\ChartWidget;
-use Filament\Widgets\Concerns\InteractsWithPageFilters;
 
 class CategoriesChart extends ChartWidget
 {
-    use InteractsWithPageFilters;
+    use InteractsWithDashboardPeriod;
 
     protected static ?string $heading = 'Estatísticas por tipo';
 
     protected static ?string $description = 'Distribuição de receitas e despesas';
 
-    protected static ?int $sort = 3;
+    protected static ?int $sort = 2;
 
-    protected int|string|array $columnSpan = [
-        'md' => 1,
-        'xl' => 1,
-    ];
+    protected int|string|array $columnSpan = 1;
 
-    protected static ?string $maxHeight = '280px';
+    protected static ?string $maxHeight = 'min(320px, 60vw)';
 
     protected function getData(): array
     {
-        $startDate = $this->filters['startDate'] ?? now()->startOfMonth();
-        $endDate = $this->filters['endDate'] ?? now()->endOfMonth();
-        $accountId = $this->filters['accountId'] ?? null;
-        $preview = (bool) ($this->filters['preview'] ?? false);
+        [$startDate, $endDate] = $this->getPeriod();
 
-        $income = $this->sumAmount($startDate, $endDate, $preview, $accountId, TransactionType::Income);
-        $expense = $this->sumAmount($startDate, $endDate, $preview, $accountId, TransactionType::Expense);
-        $investments = $this->sumInvestments($startDate, $endDate, $preview, $accountId);
+        $income = $this->sumAmount($startDate, $endDate, TransactionType::Income);
+        $expense = $this->sumAmount($startDate, $endDate, TransactionType::Expense);
+        $investments = $this->sumInvestments($startDate, $endDate);
 
         return [
             'datasets' => [
@@ -97,31 +91,21 @@ class CategoriesChart extends ChartWidget
         JS);
     }
 
-    private function sumAmount(mixed $startDate, mixed $endDate, bool $preview, ?string $accountId, TransactionType $type): int
+    private function sumAmount(string $startDate, string $endDate, TransactionType $type): int
     {
-        $query = Transaction::where('transaction_type', $type)
+        return (int) Transaction::where('transaction_type', $type)
             ->withoutInvestments()
-            ->forCashFlowPeriod($startDate, $endDate, $preview);
-
-        if ($accountId) {
-            $query->where('account_id', $accountId);
-        }
-
-        return (int) $query->sum('amount');
+            ->forCashFlowPeriod($startDate, $endDate)
+            ->sum('amount');
     }
 
-    private function sumInvestments(mixed $startDate, mixed $endDate, bool $preview, ?string $accountId): int
+    private function sumInvestments(string $startDate, string $endDate): int
     {
-        $query = Transaction::query()
+        return (int) Transaction::query()
             ->onlyInvestments()
             ->where('transaction_type', TransactionType::Expense)
-            ->forCashFlowPeriod($startDate, $endDate, $preview);
-
-        if ($accountId) {
-            $query->where('account_id', $accountId);
-        }
-
-        return (int) $query->sum('amount');
+            ->forCashFlowPeriod($startDate, $endDate)
+            ->sum('amount');
     }
 
     protected function getType(): string

@@ -3,16 +3,15 @@
 namespace App\Filament\Pages;
 
 use App\Filament\Widgets\MonthProjectionWidget;
-use Closure;
 use Filament\Forms;
 use Filament\Forms\Form;
-use Filament\Notifications\Notification;
+use Filament\Forms\Get;
 use Filament\Pages\Dashboard as BaseDashboard;
 use Filament\Pages\Dashboard\Concerns\HasFiltersForm;
 use Filament\Support\Enums\ActionSize;
 use Filament\Support\Enums\IconSize;
 use Filament\Widgets\WidgetConfiguration;
-use Livewire\Component as Livewire;
+use Illuminate\Support\Carbon;
 
 class Dashboard extends BaseDashboard
 {
@@ -27,6 +26,41 @@ class Dashboard extends BaseDashboard
     public function persistsFiltersInSession(): bool
     {
         return false;
+    }
+
+    /**
+     * Data do filtro em Y-m-d, ou null quando o campo está vazio ("" conta como vazio).
+     */
+    public static function filterDate(?array $filters, string $key): ?string
+    {
+        $value = $filters[$key] ?? null;
+
+        return filled($value) ? Carbon::parse($value)->toDateString() : null;
+    }
+
+    public static function hasActiveFilters(?array $filters): bool
+    {
+        return static::filterDate($filters, 'startDate') !== null
+            || static::filterDate($filters, 'endDate') !== null;
+    }
+
+    public function updatedFilters(mixed $value = null, ?string $key = null): void
+    {
+        $this->resetErrorBag();
+
+        $filters = [
+            'startDate' => static::filterDate($this->filters, 'startDate'),
+            'endDate' => static::filterDate($this->filters, 'endDate'),
+        ];
+
+        if ($filters['startDate'] && $filters['endDate'] && $filters['startDate'] > $filters['endDate']) {
+            $changed = $key === 'startDate' ? 'startDate' : 'endDate';
+            $filters[$changed] = null;
+
+            $this->addError("filters.{$changed}", 'A data inicial deve ser menor ou igual à data final.');
+        }
+
+        $this->filters = $filters;
     }
 
     /**
@@ -50,69 +84,63 @@ class Dashboard extends BaseDashboard
     {
         return $form
             ->schema([
-                Forms\Components\Section::make('Filtros')
-                    ->icon('heroicon-m-funnel')
-                    ->collapsible()
-                    ->collapsed()
-                    ->columns(4)
+                Forms\Components\Section::make('Período')
+                    ->description(fn (): string => $this->getPeriodDescription())
+                    ->icon('heroicon-m-calendar-days')
                     ->iconSize(IconSize::Medium)
-                    ->schema([
-                        Forms\Components\DatePicker::make('startDate')
-                            ->label('Data inicial'),
-                        Forms\Components\DatePicker::make('endDate')
-                            ->label('Data final'),
-                        Forms\Components\Select::make('accountId')
-                            ->label('Conta')
-                            ->native(false)
-                            ->options(auth()->user()->accounts->pluck('name', 'id')),
-                        Forms\Components\Select::make('preview')
-                            ->label('Projetar')
-                            ->boolean()
-                            ->native(false)
-                            ->hintIcon('heroicon-m-question-mark-circle')
-                            ->hintIconTooltip('Ao ativar essa opção, considera todas as transações, finalizadas ou não.'),
+                    ->collapsible()
+                    ->columns([
+                        'default' => 1,
+                        'md' => 2,
                     ])
-                    ->headerActions($this->getFiltersFormHeaderActions()),
+                    ->schema([
+                        // Debounce evita aplicar anos incompletos enquanto a data é digitada
+                        Forms\Components\DatePicker::make('startDate')
+                            ->label('Data inicial')
+                            ->live(debounce: 600)
+                            ->maxDate(fn (Get $get): ?string => $get('endDate') ?: null),
+                        Forms\Components\DatePicker::make('endDate')
+                            ->label('Data final')
+                            ->live(debounce: 600)
+                            ->minDate(fn (Get $get): ?string => $get('startDate') ?: null),
+                    ])
+                    ->headerActions([
+                        Forms\Components\Actions\Action::make('clearFilters')
+                            ->label('Limpar')
+                            ->icon('heroicon-m-x-mark')
+                            ->color('gray')
+                            ->size(ActionSize::Small)
+                            ->visible(fn (): bool => static::hasActiveFilters($this->filters))
+                            ->action(fn () => $this->clearFilters()),
+                    ]),
             ]);
     }
 
-    private function getFiltersFormHeaderActions(): array
+    public function clearFilters(): void
     {
-        return [
-            Forms\Components\Actions\Action::make('clearFilters')
-                ->label('Limpar filtros')
-                ->icon('heroicon-m-x-circle')
-                ->size(ActionSize::ExtraSmall)
-                ->hidden($this->checkIfFilterFormHasFilledFields())
-                ->action($this->resetFilterFormFields()),
-        ];
+        $this->getFiltersForm()->fill();
+        $this->updatedFilters();
     }
 
-    private function checkIfFilterFormHasFilledFields(): Closure
+    private function getPeriodDescription(): string
     {
-        return fn (Livewire $livewire) => collect($livewire->filters)
-            ->filter(fn ($filter) => !is_null($filter))
-            ->count() == 0;
-    }
+        $start = static::filterDate($this->filters, 'startDate');
+        $end = static::filterDate($this->filters, 'endDate');
 
-    private function resetFilterFormFields(): Closure
-    {
-        return function () {
-            $this->getFiltersForm()->fill();
-            $this->updatedFilters();
+        if ($start === null && $end === null) {
+            return 'Sem período definido: mostrando o mês atual.';
+        }
 
-            Notification::make()
-                ->title('Filtros limpados com sucesso!')
-                ->success()
-                ->send();
-        };
+        $format = fn (?string $date): string => $date ? Carbon::parse($date)->format('d/m/Y') : '…';
+
+        return 'Mostrando de '.$format($start).' até '.$format($end).'.';
     }
 
     public function getColumns(): int|string|array
     {
         return [
+            'default' => 1,
             'md' => 2,
-            'xl' => 4,
         ];
     }
 }

@@ -22,10 +22,16 @@ class EditProfile extends BasePage
                             ->description('Seus dados de usuário')
                             ->icon('heroicon-o-user-circle')
                             ->aside()
-                            ->columns(4)
+                            ->columns([
+                                'default' => 1,
+                                'lg' => 4,
+                            ])
                             ->schema([
                                 Forms\Components\Group::make()
-                                    ->columnSpan(3)
+                                    ->columnSpan([
+                                        'default' => 'full',
+                                        'lg' => 3,
+                                    ])
                                     ->schema([
                                         $this->getNameFormComponent(),
                                         $this->getEmailFormComponent(),
@@ -37,7 +43,11 @@ class EditProfile extends BasePage
                                     ->image()
                                     ->imageEditor()
                                     ->imageEditorMode(2)
-                                    ->directory('users'),
+                                    ->directory('users')
+                                    ->columnSpan([
+                                        'default' => 'full',
+                                        'lg' => 1,
+                                    ]),
                             ]),
 
                         Forms\Components\Section::make('Segurança')

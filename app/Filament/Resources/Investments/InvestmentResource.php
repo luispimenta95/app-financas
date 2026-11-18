@@ -36,7 +36,10 @@ class InvestmentResource extends Resource
     public static function form(Form $form): Form
     {
         return $form
-            ->columns(2)
+            ->columns([
+                'default' => 1,
+                'md' => 2,
+            ])
             ->schema([
                 Forms\Components\Hidden::make('type')
                     ->default(InvestmentType::FixedIncome->value)
@@ -122,7 +125,8 @@ class InvestmentResource extends Resource
                     ->label('Instituição')
                     ->searchable()
                     ->sortable()
-                    ->placeholder('—'),
+                    ->placeholder('—')
+                    ->visibleFrom('md'),
 
                 TextColumn::make('type')
                     ->label('Tipo')
@@ -143,13 +147,15 @@ class InvestmentResource extends Resource
                     ->label('Aplicação')
                     ->date('d/m/Y')
                     ->placeholder('—')
-                    ->sortable(),
+                    ->sortable()
+                    ->visibleFrom('lg'),
 
                 TextColumn::make('interest_rate')
                     ->label('Rentabilidade')
                     ->alignEnd()
                     ->state(fn (Investment $record): string => $record->formattedInterestRate())
-                    ->sortable(),
+                    ->sortable()
+                    ->visibleFrom('md'),
 
                 IconColumn::make('daily_liquidity')
                     ->label('Liq. diária')
@@ -157,18 +163,21 @@ class InvestmentResource extends Resource
                     ->alignCenter()
                     ->getStateUsing(fn (Investment $record): ?bool => $record->type?->isEstimatedControl()
                         ? null
-                        : $record->daily_liquidity),
+                        : $record->daily_liquidity)
+                    ->visibleFrom('lg'),
 
                 TextColumn::make('maturity_date')
                     ->label('Vencimento')
                     ->date('d/m/Y')
                     ->placeholder('—')
-                    ->sortable(),
+                    ->sortable()
+                    ->visibleFrom('lg'),
 
                 TextColumn::make('updated_at')
                     ->label('Atualizado em')
                     ->dateTime('d/m/Y H:i')
-                    ->sortable(),
+                    ->sortable()
+                    ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->defaultSort('application_date', 'desc')
             ->actions([
