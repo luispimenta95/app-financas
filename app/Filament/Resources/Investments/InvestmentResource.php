@@ -5,9 +5,12 @@ namespace App\Filament\Resources\Investments;
 use App\Enums\InvestmentRateType;
 use App\Enums\InvestmentType;
 use App\Models\Investment;
+use App\Services\Investment\RedeemInvestment;
+use Closure;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Forms\Get;
+use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Columns\IconColumn;
@@ -35,7 +38,10 @@ class InvestmentResource extends Resource
     public static function form(Form $form): Form
     {
         return $form
-            ->columns(2)
+            ->columns([
+                'default' => 1,
+                'md' => 2,
+            ])
             ->schema([
                 Forms\Components\Hidden::make('type')
                     ->default(InvestmentType::FixedIncome->value)
@@ -121,7 +127,8 @@ class InvestmentResource extends Resource
                     ->label('Instituição')
                     ->searchable()
                     ->sortable()
-                    ->placeholder('—'),
+                    ->placeholder('—')
+                    ->visibleFrom('md'),
 
                 TextColumn::make('type')
                     ->label('Tipo')
@@ -142,13 +149,15 @@ class InvestmentResource extends Resource
                     ->label('Aplicação')
                     ->date('d/m/Y')
                     ->placeholder('—')
-                    ->sortable(),
+                    ->sortable()
+                    ->visibleFrom('lg'),
 
                 TextColumn::make('interest_rate')
                     ->label('Rentabilidade')
                     ->alignEnd()
                     ->state(fn (Investment $record): string => $record->formattedInterestRate())
-                    ->sortable(),
+                    ->sortable()
+                    ->visibleFrom('md'),
 
                 IconColumn::make('daily_liquidity')
                     ->label('Liq. diária')
@@ -156,18 +165,21 @@ class InvestmentResource extends Resource
                     ->alignCenter()
                     ->getStateUsing(fn (Investment $record): ?bool => $record->type?->isEstimatedControl()
                         ? null
-                        : $record->daily_liquidity),
+                        : $record->daily_liquidity)
+                    ->visibleFrom('lg'),
 
                 TextColumn::make('maturity_date')
                     ->label('Vencimento')
                     ->date('d/m/Y')
                     ->placeholder('—')
-                    ->sortable(),
+                    ->sortable()
+                    ->visibleFrom('lg'),
 
                 TextColumn::make('updated_at')
                     ->label('Atualizado em')
                     ->dateTime('d/m/Y H:i')
-                    ->sortable(),
+                    ->sortable()
+                    ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->defaultSort(
                 fn (Builder $query): Builder => $query->orderByRedemption(),
@@ -202,6 +214,7 @@ class InvestmentResource extends Resource
             ])
             ->modifyQueryUsing(fn (Builder $query): Builder => $query->orderByRedemption())
             ->actions([
+                static::getRedeemAction(),
                 Tables\Actions\EditAction::make()
                     ->mutateFormDataUsing(function (array $data, Investment $record): array {
                         if ($record->type?->isEstimatedControl()) {
@@ -233,6 +246,66 @@ class InvestmentResource extends Resource
     public static function getNavigationBadge(): ?string
     {
         return (string) static::getModel()::count();
+    }
+
+    public static function getRedeemAction(): Tables\Actions\Action
+    {
+        return Tables\Actions\Action::make('redeem')
+            ->label('Resgatar')
+            ->icon('heroicon-m-arrow-uturn-left')
+            ->color('warning')
+            ->visible(fn (Investment $record): bool => $record->type === InvestmentType::FixedIncome && $record->amount > 0)
+            ->modalHeading(fn (Investment $record): string => "Resgatar {$record->name}")
+            ->modalDescription('O valor resgatado é descontado do investimento e lançado como receita na categoria Investimentos, entrando no saldo do mês do resgate.')
+            ->modalSubmitActionLabel('Resgatar')
+            ->fillForm(fn (Investment $record): array => [
+                'amount' => $record->amount,
+                'date' => now()->toDateString(),
+            ])
+            ->form([
+                Money::make('amount')
+                    ->label('Valor resgatado')
+                    ->required()
+                    ->formatStateUsing(fn (?int $state) => number_format(($state ?? 0) / 100, 2, ',', '.'))
+                    ->dehydrateStateUsing(fn (?string $state): int => static::parseMoney($state))
+                    ->helperText(fn (Investment $record): string => 'Saldo atual: R$ '.number_format($record->amount / 100, 2, ',', '.'))
+                    ->rule(fn (Investment $record): Closure => function (string $attribute, mixed $value, Closure $fail) use ($record): void {
+                        $amount = static::parseMoney($value);
+
+                        if ($amount <= 0) {
+                            $fail('Informe um valor maior que zero.');
+                        } elseif ($amount > $record->amount) {
+                            $fail('O valor não pode ser maior que o saldo do investimento.');
+                        }
+                    }),
+                Forms\Components\DatePicker::make('date')
+                    ->label('Data do resgate')
+                    ->required(),
+            ])
+            ->action(function (array $data, Investment $record): void {
+                app(RedeemInvestment::class)->handle(
+                    investment: $record,
+                    amount: $data['amount'],
+                    date: $data['date'],
+                );
+
+                Notification::make()
+                    ->title('Resgate registrado')
+                    ->body($record->amount > 0
+                        ? 'Saldo restante: R$ '.number_format($record->amount / 100, 2, ',', '.')
+                        : 'Investimento resgatado por completo.')
+                    ->success()
+                    ->send();
+            });
+    }
+
+    private static function parseMoney(mixed $state): int
+    {
+        if (is_int($state)) {
+            return $state;
+        }
+
+        return str((string) $state)->replace(['.', ','], '')->toInteger();
     }
 
     private static function isFixedIncomeForm(Get $get, ?Investment $record): bool

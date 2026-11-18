@@ -4,23 +4,20 @@ namespace App\Filament\Widgets;
 
 use App\Enums\TransactionType;
 use App\Models\Transactions\Category;
+use App\Filament\Widgets\Concerns\InteractsWithDashboardPeriod;
 use App\Models\User;
-use Filament\Widgets\Concerns\InteractsWithPageFilters;
 use Filament\Widgets\Widget;
 use Illuminate\Contracts\View\View;
 
 class TopCategoriesWidget extends Widget
 {
-    use InteractsWithPageFilters;
+    use InteractsWithDashboardPeriod;
 
     protected static string $view = 'filament.widgets.top-categories';
 
-    protected static ?int $sort = 4;
+    protected static ?int $sort = 3;
 
-    protected int|string|array $columnSpan = [
-        'md' => 1,
-        'xl' => 1,
-    ];
+    protected int|string|array $columnSpan = 1;
 
     public function render(): View
     {
@@ -37,10 +34,7 @@ class TopCategoriesWidget extends Widget
      */
     private function getCategories(): array
     {
-        $startDate = $this->filters['startDate'] ?? now()->startOfMonth();
-        $endDate = $this->filters['endDate'] ?? now()->endOfMonth();
-        $accountId = $this->filters['accountId'] ?? null;
-        $preview = (bool) ($this->filters['preview'] ?? false);
+        [$startDate, $endDate] = $this->getPeriod();
 
         /** @var User $user */
         $user = User::find(auth()->id());
@@ -55,19 +49,11 @@ class TopCategoriesWidget extends Widget
         $total = 0;
 
         foreach ($categories as $category) {
-            $query = $category->transactions()
+            $amount = (int) $category->transactions()
                 ->where('transaction_type', TransactionType::Expense)
-                ->forDuePeriod($startDate, $endDate);
-
-            if (!$preview) {
-                $query->where('finished', true);
-            }
-
-            if ($accountId) {
-                $query->where('account_id', $accountId);
-            }
-
-            $amount = (int) $query->sum('amount');
+                ->where('finished', true)
+                ->forDuePeriod($startDate, $endDate)
+                ->sum('amount');
 
             if ($amount <= 0) {
                 continue;

@@ -74,7 +74,9 @@ class CategoryResource extends Resource
                 ])->space(2),
             ])
             ->contentGrid([
-                'md' => 2,
+                'default' => 1,
+                'sm' => 2,
+                'md' => 3,
                 'xl' => 4,
             ])
             ->paginated([

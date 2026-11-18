@@ -36,6 +36,7 @@ class DashPanelProvider extends PanelProvider
             ->spa()
             ->profile(page: EditProfile::class, isSimple: false)
             ->sidebarCollapsibleOnDesktop()
+            ->maxContentWidth('full')
             ->databaseNotifications()
             ->brandName('Finanças')
             ->font('DM Sans')
@@ -62,12 +63,10 @@ class DashPanelProvider extends PanelProvider
             ->widgets([
                 Widgets\MonthProjectionWidget::class,
                 Widgets\TransactionsOverview::class,
-                Widgets\InvestmentsTotalWidget::class,
-                Widgets\MonthRevenue::class,
                 Widgets\CategoriesChart::class,
                 Widgets\TopCategoriesWidget::class,
-                Widgets\TodayTransactions::class,
-                Widgets\RecentActivityWidget::class,
+                Widgets\InvestmentsTotalWidget::class,
+                Widgets\MonthRevenue::class,
             ])
             ->middleware([
                 EncryptCookies::class,

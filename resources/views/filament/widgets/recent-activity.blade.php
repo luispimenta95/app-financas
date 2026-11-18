@@ -21,7 +21,7 @@
             Nenhuma atividade recente.
         </p>
     @else
-        <ul class="space-y-4">
+        <ul class="grid gap-4 md:grid-cols-2">
             @foreach ($activities as $activity)
                 <li class="dash-activity-item">
                     <span class="dash-activity-dot" style="background-color: {{ $activity['color'] }};"></span>

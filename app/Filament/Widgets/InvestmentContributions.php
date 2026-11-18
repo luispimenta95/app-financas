@@ -3,25 +3,23 @@
 namespace App\Filament\Widgets;
 
 use App\Enums\TransactionType;
+use App\Filament\Widgets\Concerns\InteractsWithDashboardPeriod;
 use App\Models\Transactions\Transaction;
-use Filament\Widgets\Concerns\InteractsWithPageFilters;
 use Filament\Widgets\StatsOverviewWidget as BaseWidget;
 use Filament\Widgets\StatsOverviewWidget\Stat;
 
 class InvestmentContributions extends BaseWidget
 {
-    use InteractsWithPageFilters;
+    use InteractsWithDashboardPeriod;
 
     protected function getStats(): array
     {
-        $startDate = $this->filters['startDate'] ?? now()->startOfMonth();
-        $endDate = $this->filters['endDate'] ?? now()->endOfMonth();
-        $preview = $this->filters['preview'] ?? false;
+        [$startDate, $endDate] = $this->getPeriod();
 
         $query = Transaction::query()
             ->onlyInvestments()
             ->where('transaction_type', TransactionType::Expense)
-            ->forCashFlowPeriod($startDate, $endDate, (bool) $preview);
+            ->forCashFlowPeriod($startDate, $endDate);
 
         return [
             Stat::make(

@@ -8,7 +8,6 @@
     :outlined="$isOutlined()"
     :size="$getSize()"
     class="fi-ac-btn-action"
-    wire:click="mountAction('{{ $action->getName() }}')"
 >
     {{ $getLabel() }}
 </x-filament-actions::action>

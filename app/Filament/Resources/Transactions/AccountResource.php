@@ -49,7 +49,10 @@ class AccountResource extends Resource
 
                 Forms\Components\Fieldset::make('Informações Adicionais')
                     ->hidden(fn(?Account $record): bool => is_null($record))
-                    ->columns(2)
+                    ->columns([
+                        'default' => 1,
+                        'md' => 2,
+                    ])
                     ->schema([
                         Forms\Components\Placeholder::make('created_at')
                             ->label('Criado em:')
@@ -75,7 +78,10 @@ class AccountResource extends Resource
                 ])->space(2),
             ])
             ->contentGrid([
-                'md' => 4,
+                'default' => 1,
+                'sm' => 2,
+                'md' => 3,
+                'xl' => 4,
             ])
             ->paginated([
                 100,

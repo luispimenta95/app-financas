@@ -1,11 +1,14 @@
 <?php
 
 use App\Enums\TransactionType;
+use App\Filament\Resources\Transactions\TransactionResource;
+use App\Filament\Resources\Transactions\TransactionResource\Pages\EditTransaction;
 use App\Models\Transactions\Account;
 use App\Models\Transactions\Category;
 use App\Models\Transactions\Transaction;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
+use Livewire\Livewire;
 
 beforeEach(function () {
     $this->user = User::factory()->create();
@@ -116,4 +119,47 @@ test('backfill preenche due_date a partir de date quando estiver nulo', function
     $transaction = Transaction::query()->findOrFail($id);
 
     expect($transaction->due_date?->toDateString())->toBe('2026-03-15');
+});
+
+test('normalizeDateInput aceita ISO do Eloquent e formatos digitados', function () {
+    expect(TransactionResource::normalizeDateInput('2026-12-30T03:00:00.000000Z'))
+        ->toBe('2026-12-30')
+        ->and(TransactionResource::normalizeDateInput('30/12/2026'))
+        ->toBe('2026-12-30')
+        ->and(TransactionResource::normalizeDateInput('2026-12-30'))
+        ->toBe('2026-12-30')
+        ->and(TransactionResource::normalizeDateInput('30-12-2026'))
+        ->toBeNull()
+        ->and(TransactionResource::normalizeDateInput(''))
+        ->toBeNull();
+});
+
+test('editar transacao preenche due_date e preserva a data do cadastro', function () {
+    $transaction = createDueDateTransaction([
+        'due_date' => '2026-07-10',
+        'date' => '2026-07-10',
+        'payment_date' => '2026-07-10',
+    ]);
+
+    // Simula o payload que o Filament passa no fill (cast date → ISO).
+    $fill = $transaction->attributesToArray();
+
+    expect(TransactionResource::normalizeDateInput($fill['due_date'] ?? null))
+        ->toBe('2026-07-10');
+
+    Livewire::test(EditTransaction::class, [
+        'record' => $transaction->getRouteKey(),
+    ])
+        ->assertFormSet([
+            'due_date' => '2026-07-10',
+        ])
+        ->fillForm([
+            'description' => 'Condominio atualizado',
+            'due_date' => null,
+        ])
+        ->call('save')
+        ->assertHasNoFormErrors();
+
+    expect($transaction->fresh()->due_date?->toDateString())->toBe('2026-07-10')
+        ->and($transaction->fresh()->description)->toBe('Condominio atualizado');
 });

@@ -4,6 +4,7 @@ namespace App\Providers;
 
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\DateTimePicker;
+use Filament\Tables\Table;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -30,6 +31,13 @@ class AppServiceProvider extends ServiceProvider
 
         DateTimePicker::configureUsing(function (DateTimePicker $component): void {
             $component->native(true);
+        });
+
+        // A single page option hides the per-page selector in every table.
+        Table::configureUsing(function (Table $table): void {
+            $table
+                ->paginated([250])
+                ->defaultPaginationPageOption(250);
         });
     }
 }

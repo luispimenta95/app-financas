@@ -9,14 +9,16 @@ use Illuminate\Support\Collection;
 
 class RecentActivityWidget extends Widget
 {
+    public static function canView(): bool
+    {
+        return false;
+    }
+
     protected static string $view = 'filament.widgets.recent-activity';
 
     protected static ?int $sort = 6;
 
-    protected int|string|array $columnSpan = [
-        'md' => 1,
-        'xl' => 1,
-    ];
+    protected int|string|array $columnSpan = 'full';
 
     public function render(): View
     {

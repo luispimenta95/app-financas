@@ -26,6 +26,7 @@ test('widget mostra a soma total da carteira do usuario', function () {
     Investment::factory()->for($this->user)->abroad()->create(['amount' => 50000]);
 
     Livewire::test(InvestmentsTotalWidget::class)
+        ->assertSee('Carteira de investimentos')
         ->assertSee('Total investido')
         ->assertSee('R$ 5.500,00')
         ->assertSee(InvestmentType::FixedIncome->getLabel())
@@ -34,5 +35,17 @@ test('widget mostra a soma total da carteira do usuario', function () {
         ->assertSee('R$ 1.000,00')
         ->assertSee(InvestmentType::Abroad->getLabel())
         ->assertSee('R$ 500,00')
-        ->assertSee('4 aplicações');
+        ->assertSee('4 aplicações')
+        ->assertDontSee('Aportes no período');
+});
+
+test('widget omite cards com valor zero', function () {
+    Investment::factory()->for($this->user)->fixedIncome()->create(['amount' => 150000]);
+
+    Livewire::test(InvestmentsTotalWidget::class)
+        ->assertSee('Total investido')
+        ->assertSee(InvestmentType::FixedIncome->getLabel())
+        ->assertSee('R$ 1.500,00')
+        ->assertDontSee(InvestmentType::VariableIncome->getLabel())
+        ->assertDontSee(InvestmentType::Abroad->getLabel());
 });

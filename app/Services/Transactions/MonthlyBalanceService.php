@@ -49,6 +49,41 @@ class MonthlyBalanceService
     }
 
     /**
+     * Saldo atual do período: transações finalizadas (aportes descontados, resgates somados)
+     * mais a sobra do mês anterior quando o período começa no dia 1.
+     */
+    public function currentBalance(DateTimeInterface|string $startDate, DateTimeInterface|string $endDate): int
+    {
+        $start = Carbon::parse($startDate);
+        $carryover = $start->day === 1 ? $this->carriedInto($start) : 0;
+
+        return $this->periodNet($start, $endDate) + $carryover;
+    }
+
+    /**
+     * Receitas menos despesas ainda não finalizadas que vencem no período, investimentos incluídos.
+     */
+    public function pendingNet(DateTimeInterface|string $startDate, DateTimeInterface|string $endDate): int
+    {
+        $pending = $this->pendingQuery($startDate, $endDate);
+
+        return (int) (clone $pending)->where('transaction_type', TransactionType::Income)->sum('amount')
+            - (int) (clone $pending)->where('transaction_type', TransactionType::Expense)->sum('amount');
+    }
+
+    public function hasPending(DateTimeInterface|string $startDate, DateTimeInterface|string $endDate): bool
+    {
+        return $this->pendingQuery($startDate, $endDate)->exists();
+    }
+
+    private function pendingQuery(DateTimeInterface|string $startDate, DateTimeInterface|string $endDate): Builder
+    {
+        return Transaction::query()
+            ->where('finished', false)
+            ->forDuePeriod(Carbon::parse($startDate)->toDateString(), Carbon::parse($endDate)->toDateString());
+    }
+
+    /**
      * @return array<string, int> net por YYYY-MM, ordenado
      */
     private function monthlyNets(string $until, bool $preview, array $accountIds): array

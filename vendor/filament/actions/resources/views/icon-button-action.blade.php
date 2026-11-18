@@ -6,5 +6,4 @@
     :label="$getLabel()"
     :size="$getSize()"
     class="fi-ac-icon-btn-action"
-    wire:click="mountAction('{{ $action->getName() }}')"
 />
