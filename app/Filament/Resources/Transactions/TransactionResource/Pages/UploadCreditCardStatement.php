@@ -5,6 +5,7 @@ namespace App\Filament\Resources\Transactions\TransactionResource\Pages;
 use App\Filament\Actions\UploadCreditCardStatementAction;
 use App\Filament\Resources\Transactions\TransactionResource;
 use App\Models\Transactions\Transaction;
+use App\Support\PlanFeature;
 use Filament\Resources\Pages\Concerns\InteractsWithRecord;
 use Filament\Resources\Pages\Page;
 use Illuminate\Contracts\Support\Htmlable;
@@ -28,6 +29,10 @@ class UploadCreditCardStatement extends Page
 
     public static function canAccess(array $parameters = []): bool
     {
+        if (! financas_user_can(PlanFeature::CREDIT_CARD_PDF)) {
+            return false;
+        }
+
         $record = $parameters['record'] ?? null;
 
         if (!$record instanceof Transaction) {
@@ -39,6 +44,8 @@ class UploadCreditCardStatement extends Page
 
     public function mount(int|string $record): void
     {
+        abort_unless(financas_user_can(PlanFeature::CREDIT_CARD_PDF), 403);
+
         $this->record = $this->resolveRecord($record);
 
         abort_unless($this->record->isCreditCardBill(), 403);

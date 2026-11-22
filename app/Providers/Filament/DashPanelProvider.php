@@ -4,6 +4,7 @@ namespace App\Providers\Filament;
 
 use App\Filament\AvatarProviders\BoringAvatarsProvider;
 use App\Filament\Pages\Auth\EditProfile;
+use App\Filament\Pages\Auth\Register;
 use App\Filament\Pages\Dashboard;
 use App\Filament\Widgets;
 use Filament\Enums\ThemeMode;
@@ -30,15 +31,18 @@ class DashPanelProvider extends PanelProvider
         return $panel
             ->default()
             ->id('dash')
+            // Com LANDING_ENABLED=true a vitrine fica em `/` e o painel em `/app`.
+            // Com false, mantém a estrutura atual (Filament na raiz).
+            ->path(financas_panel_path())
             ->login()
-            ->registration()
+            ->registration(Register::class)
             ->passwordReset()
             ->spa()
             ->profile(page: EditProfile::class, isSimple: false)
             ->sidebarCollapsibleOnDesktop()
             ->maxContentWidth('full')
             ->databaseNotifications()
-            ->brandName('Finanças')
+            ->brandName((string) config('financas.brand', 'Finanças'))
             ->font('DM Sans')
             ->colors([
                 'danger' => Color::Rose,

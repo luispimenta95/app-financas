@@ -3,12 +3,14 @@
 namespace App\Filament\Resources\Investments;
 
 use App\Models\InvestmentMilestone;
+use App\Support\PlanFeature;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Model;
 use Leandrocfe\FilamentPtbrFormFields\Money;
 
 class MilestoneResource extends Resource
@@ -26,6 +28,26 @@ class MilestoneResource extends Resource
     protected static bool $shouldRegisterNavigation = false;
 
     protected static ?int $navigationSort = 4;
+
+    public static function canViewAny(): bool
+    {
+        return financas_user_can(PlanFeature::INVESTMENT_MILESTONES);
+    }
+
+    public static function canCreate(): bool
+    {
+        return static::canViewAny();
+    }
+
+    public static function canEdit(Model $record): bool
+    {
+        return static::canViewAny();
+    }
+
+    public static function canDelete(Model $record): bool
+    {
+        return static::canViewAny();
+    }
 
     public static function form(Form $form): Form
     {

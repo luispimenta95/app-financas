@@ -10,6 +10,16 @@ use Illuminate\Support\Facades\Notification;
 class UserObserver
 {
     /**
+     * Handle the User "creating" event.
+     */
+    public function creating(User $user): void
+    {
+        if (blank($user->plan)) {
+            $user->plan = (string) config('financas.default_plan', 'free');
+        }
+    }
+
+    /**
      * Handle the User "created" event.
      */
     public function created(User $user): void
