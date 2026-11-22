@@ -8,13 +8,19 @@ use App\Models\Transactions\Category;
 use App\Models\Transactions\Transaction;
 use App\Services\Transactions\BoletoImporter;
 use App\Support\PlanFeature;
+use Filament\Forms;
+use Filament\Forms\Concerns\InteractsWithForms;
+use Filament\Forms\Contracts\HasForms;
+use Filament\Forms\Form;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\Page;
 use Illuminate\Contracts\Support\Htmlable;
 use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
 
-class UploadBoleto extends Page
+class UploadBoleto extends Page implements HasForms
 {
+    use InteractsWithForms;
+
     protected static string $resource = TransactionResource::class;
 
     protected static string $view = 'filament.resources.transactions.upload-boleto';
@@ -25,11 +31,12 @@ class UploadBoleto extends Page
 
     public ?string $statement_password = null;
 
-    public ?string $account_id = null;
-
-    public ?string $category_id = null;
-
     public ?string $transaction_id = null;
+
+    /**
+     * @var array<string, mixed>|null
+     */
+    public ?array $data = [];
 
     public static function canAccess(array $parameters = []): bool
     {
@@ -42,12 +49,7 @@ class UploadBoleto extends Page
 
         $user = auth()->user();
 
-        $this->account_id = Account::query()
-            ->where('user_id', $user->id)
-            ->orderBy('name')
-            ->value('id');
-
-        $this->category_id = Category::query()
+        $defaultCategoryId = Category::query()
             ->where('user_id', $user->id)
             ->where('slug', 'outros')
             ->value('id');
@@ -59,25 +61,62 @@ class UploadBoleto extends Page
             abort_unless($transaction->isExpense(), 403, 'Boleto só pode ser vinculado a despesas.');
 
             $this->transaction_id = $transaction->id;
-            $this->account_id = $transaction->account_id ?: $this->account_id;
-            $this->category_id = $transaction->category_id ?: $this->category_id;
+            $defaultCategoryId = $transaction->category_id ?: $defaultCategoryId;
         }
+
+        $this->form->fill([
+            'category_id' => $defaultCategoryId,
+        ]);
+    }
+
+    public function form(Form $form): Form
+    {
+        return $form
+            ->schema([
+                Forms\Components\Select::make('category_id')
+                    ->label('Categoria')
+                    ->options(fn (): array => Category::query()
+                        ->where('user_id', auth()->id())
+                        ->where('slug', '!=', Category::INVESTMENTS_SLUG)
+                        ->orderBy('name')
+                        ->pluck('name', 'id')
+                        ->all())
+                    ->searchable()
+                    ->native(false)
+                    ->required()
+                    ->helperText('Escolha a categoria do lançamento.'),
+            ])
+            ->statePath('data');
     }
 
     public function submit(): void
     {
+        $formState = $this->form->getState();
+
         $this->validate([
             'pdf' => ['required'],
-            'account_id' => ['required', 'uuid'],
-            'category_id' => ['nullable', 'uuid'],
             'statement_password' => ['nullable', 'string', 'max:255'],
         ], [
             'pdf.required' => 'Selecione o PDF do boleto.',
-            'account_id.required' => 'Selecione a conta.',
         ]);
 
         if (! $this->pdf instanceof TemporaryUploadedFile) {
             $this->addError('pdf', 'Selecione o PDF do boleto.');
+
+            return;
+        }
+
+        $accountId = Account::query()
+            ->where('user_id', auth()->id())
+            ->orderBy('name')
+            ->value('id');
+
+        if (blank($accountId)) {
+            Notification::make()
+                ->title('Nenhuma conta encontrada')
+                ->body('Cadastre uma conta antes de importar o boleto.')
+                ->danger()
+                ->send();
 
             return;
         }
@@ -93,8 +132,8 @@ class UploadBoleto extends Page
             relativePath: $path,
             password: $this->statement_password,
             originalName: $this->pdf->getClientOriginalName(),
-            accountId: $this->account_id,
-            categoryId: $this->category_id,
+            accountId: $accountId,
+            categoryId: $formState['category_id'] ?? null,
             transaction: $transaction,
         );
 
@@ -115,31 +154,6 @@ class UploadBoleto extends Page
             ->send();
 
         $this->redirect(TransactionResource::getUrl('index'));
-    }
-
-    /**
-     * @return array<string, string>
-     */
-    public function accountOptions(): array
-    {
-        return Account::query()
-            ->where('user_id', auth()->id())
-            ->orderBy('name')
-            ->pluck('name', 'id')
-            ->all();
-    }
-
-    /**
-     * @return array<string, string>
-     */
-    public function categoryOptions(): array
-    {
-        return Category::query()
-            ->where('user_id', auth()->id())
-            ->where('slug', '!=', Category::INVESTMENTS_SLUG)
-            ->orderBy('name')
-            ->pluck('name', 'id')
-            ->all();
     }
 
     public function getTitle(): string|Htmlable
