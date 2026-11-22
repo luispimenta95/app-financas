@@ -1,11 +1,35 @@
 <?php
 
+use App\Http\Controllers\LandingController;
+use Illuminate\Foundation\Http\Middleware\VerifyCsrfToken;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Route;
-use Illuminate\Foundation\Http\Middleware\VerifyCsrfToken;
 
-// Filament login is served by GET /login and handled by Livewire.
-// If JS fails to boot, browsers can fallback to POST /login, which would throw 405.
-Route::post('/login', function (): RedirectResponse {
-	return redirect('/login');
+/*
+|--------------------------------------------------------------------------
+| Landing de vendas (opcional via LANDING_ENABLED)
+|--------------------------------------------------------------------------
+|
+| Quando habilitada, `/` vira a vitrine comercial e o Filament sobe para `/app`.
+| Quando desabilitada, nenhuma rota de landing é registrada e o painel
+| continua na raiz — comportamento atual.
+|
+*/
+if (financas_landing_enabled()) {
+    Route::get('/', LandingController::class)->name('landing');
+}
+
+/*
+|--------------------------------------------------------------------------
+| Fallback POST do login Filament
+|--------------------------------------------------------------------------
+|
+| O login Filament é servido via GET (Livewire). Se o JS falhar, o browser
+| pode cair em POST e receber 405 — redirecionamos de volta ao formulário.
+|
+*/
+$loginPath = trim(financas_panel_path() . '/login', '/');
+
+Route::post('/' . $loginPath, function () use ($loginPath): RedirectResponse {
+    return redirect('/' . $loginPath);
 })->withoutMiddleware([VerifyCsrfToken::class]);

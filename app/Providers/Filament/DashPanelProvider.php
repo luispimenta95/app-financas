@@ -30,6 +30,9 @@ class DashPanelProvider extends PanelProvider
         return $panel
             ->default()
             ->id('dash')
+            // Com LANDING_ENABLED=true a vitrine fica em `/` e o painel em `/app`.
+            // Com false, mantém a estrutura atual (Filament na raiz).
+            ->path(financas_panel_path())
             ->login()
             ->registration()
             ->passwordReset()
@@ -38,7 +41,7 @@ class DashPanelProvider extends PanelProvider
             ->sidebarCollapsibleOnDesktop()
             ->maxContentWidth('full')
             ->databaseNotifications()
-            ->brandName('Finanças')
+            ->brandName((string) config('financas.brand', 'Finanças'))
             ->font('DM Sans')
             ->colors([
                 'danger' => Color::Rose,

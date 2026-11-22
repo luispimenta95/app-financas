@@ -26,3 +26,37 @@ if (!function_exists('get_avaliable_icons')) {
         return $allIcons;
     }
 }
+
+if (!function_exists('financas_landing_enabled')) {
+    function financas_landing_enabled(): bool
+    {
+        return (bool) config('financas.landing_enabled');
+    }
+}
+
+if (!function_exists('financas_panel_path')) {
+    /**
+     * Prefixo do painel Filament: `app` com landing ligada, vazio no modo atual.
+     */
+    function financas_panel_path(): string
+    {
+        return financas_landing_enabled() ? 'app' : '';
+    }
+}
+
+if (!function_exists('financas_panel_url')) {
+    /**
+     * URL dentro do painel (login, register, dashboard…).
+     */
+    function financas_panel_url(string $path = ''): string
+    {
+        $base = trim(financas_panel_path(), '/');
+        $path = trim($path, '/');
+
+        if ($base === '') {
+            return url($path === '' ? '/' : '/' . $path);
+        }
+
+        return url($path === '' ? '/' . $base : '/' . $base . '/' . $path);
+    }
+}
