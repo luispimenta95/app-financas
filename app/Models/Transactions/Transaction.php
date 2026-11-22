@@ -216,6 +216,25 @@ class Transaction extends Model
     }
 
     /**
+     * Pendências com vencimento entre hoje e os próximos N dias (inclusive).
+     *
+     * Usa limite superior exclusivo (< amanhã+N) para funcionar com DATETIME
+     * no SQLite/MySQL sem cortar o último dia da janela.
+     */
+    public function scopeUpcomingDue(Builder $query, int $days = 7): Builder
+    {
+        $days = max(1, $days);
+        $today = now()->toDateString();
+        $untilExclusive = now()->addDays($days)->toDateString();
+
+        return $query
+            ->where('finished', false)
+            ->whereRaw(static::dueDateExpression().' >= ?', [$today])
+            ->whereRaw(static::dueDateExpression().' < ?', [$untilExclusive])
+            ->orderByRaw(static::dueDateExpression().' ASC');
+    }
+
+    /**
      * Totais de entradas/saídas pelo mês em que o valor foi pago/recebido.
      * Finalizadas usam payment_date (fallback due_date/date).
      * Em modo projeção, pendentes entram pelo vencimento.
