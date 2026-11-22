@@ -62,7 +62,6 @@ class ListCreditCardPurchases extends ManageRelatedRecords
             ->recordTitleAttribute('description')
             ->defaultSort('sort_order')
             ->striped()
-            ->paginated([25, 50, 100])
             ->columns([
                 Tables\Columns\TextColumn::make('occurred_on')
                     ->label('Data')

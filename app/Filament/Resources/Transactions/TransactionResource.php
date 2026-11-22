@@ -365,7 +365,6 @@ class TransactionResource extends Resource
                     ->label('Conta')
                     ->getTitleFromRecordUsing(fn (Transaction $record): ?string => $record->account?->name),
             ])
-            ->paginated(false)
             ->actionsAlignment('right')
             ->actions([
                 Tables\Actions\Action::make('uploadStatement')

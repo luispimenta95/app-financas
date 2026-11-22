@@ -34,6 +34,7 @@ class User extends Authenticatable implements FilamentUser, HasAvatar
         'avatar',
         'plan',
         'trial_ends_at',
+        'table_records_per_page',
     ];
 
     /**
@@ -57,6 +58,7 @@ class User extends Authenticatable implements FilamentUser, HasAvatar
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'trial_ends_at' => 'datetime',
+            'table_records_per_page' => 'integer',
         ];
     }
 
@@ -112,5 +114,10 @@ class User extends Authenticatable implements FilamentUser, HasAvatar
     public function onTrial(): bool
     {
         return $this->trial_ends_at !== null && $this->trial_ends_at->isFuture();
+    }
+
+    public function tableRecordsPerPage(): int
+    {
+        return \App\Support\TablePagination::normalize($this->table_records_per_page);
     }
 }

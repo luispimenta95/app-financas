@@ -83,10 +83,6 @@ class AccountResource extends Resource
                 'md' => 3,
                 'xl' => 4,
             ])
-            ->paginated([
-                100,
-                'all',
-            ])
             ->actionsAlignment('right')
             ->actions([
                 Tables\Actions\EditAction::make()
