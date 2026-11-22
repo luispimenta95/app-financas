@@ -55,7 +55,7 @@ class EditProfile extends BasePage
                             ]),
 
                         Forms\Components\Section::make('Plano e funcionalidades')
-                            ->description('Defina o plano deste usuário. As features de cada plano ficam em config/financas.php.')
+                            ->description('Pro sem data de trial = acesso ilimitado. Features por plano em config/financas.php.')
                             ->icon('heroicon-o-sparkles')
                             ->aside()
                             ->schema([
@@ -64,21 +64,26 @@ class EditProfile extends BasePage
                                     ->options(fn (): array => $plans->planOptions())
                                     ->required()
                                     ->native(false)
-                                    ->live(),
+                                    ->live()
+                                    ->helperText('Escolha Pro para acesso completo sem limite de dias.'),
                                 Forms\Components\DateTimePicker::make('trial_ends_at')
                                     ->label('Trial válido até')
-                                    ->helperText('Se preenchido e no futuro, libera o plano de trial ('. $plans->trialPlanKey() .') mesmo com plano Gratuito.')
+                                    ->helperText('Só se aplica no plano Gratuito: libera o Pro temporariamente. No Pro o trial é ignorado.')
                                     ->native(false)
-                                    ->seconds(false),
+                                    ->seconds(false)
+                                    ->visible(fn (Get $get): bool => (string) $get('plan') !== $plans->trialPlanKey())
+                                    ->dehydrated(fn (Get $get): bool => (string) $get('plan') !== $plans->trialPlanKey()),
                                 Forms\Components\Placeholder::make('plan_features')
                                     ->label('Funcionalidades do plano efetivo')
                                     ->content(function (Get $get) use ($plans): string {
-                                        $user = $this->getUser();
                                         $selectedPlan = (string) ($get('plan') ?: $plans->defaultPlanKey());
                                         $trialEnds = $get('trial_ends_at');
 
                                         $effective = $selectedPlan;
-                                        if (filled($trialEnds)) {
+
+                                        if ($plans->isUnlimitedPlan($selectedPlan)) {
+                                            $effective = $selectedPlan;
+                                        } elseif (filled($trialEnds)) {
                                             try {
                                                 if (\Illuminate\Support\Carbon::parse($trialEnds)->isFuture()) {
                                                     $effective = $plans->trialPlanKey();
@@ -88,20 +93,19 @@ class EditProfile extends BasePage
                                             }
                                         }
 
-                                        // Se o trial do formulário está vazio, respeita o valor atual do usuário só na primeira carga.
-                                        if (blank($trialEnds) && $user->onTrial()) {
-                                            $effective = $plans->trialPlanKey();
-                                        }
-
                                         $labels = collect($plans->featureKeysForPlan($effective))
                                             ->map(fn (string $key): string => $plans->features()[$key]['label'] ?? $key)
                                             ->all();
+
+                                        $suffix = $plans->isUnlimitedPlan($effective)
+                                            ? ' (ilimitado)'
+                                            : '';
 
                                         if ($labels === []) {
                                             return 'Nenhuma feature configurada para este plano.';
                                         }
 
-                                        return 'Plano efetivo: '.$effective."\n• ".implode("\n• ", $labels);
+                                        return 'Plano efetivo: '.$effective.$suffix."\n• ".implode("\n• ", $labels);
                                     }),
                             ]),
 
@@ -146,5 +150,21 @@ class EditProfile extends BasePage
     public function getFormActionsAlignment(): string|Alignment
     {
         return Alignment::End;
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
+    protected function mutateFormDataBeforeSave(array $data): array
+    {
+        $plans = app(PlanCatalog::class);
+
+        if (($data['plan'] ?? null) === $plans->trialPlanKey()) {
+            // Pro permanente: sem contagem de dias.
+            $data['trial_ends_at'] = null;
+        }
+
+        return $data;
     }
 }

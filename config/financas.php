@@ -35,7 +35,8 @@ return [
 
     'features_enforced' => (bool) env('FEATURES_ENFORCED', true),
 
-    'default_plan' => env('DEFAULT_PLAN', 'free'),
+    // Use "pro" para o dono do app ter acesso completo sem trial.
+    'default_plan' => env('DEFAULT_PLAN', 'pro'),
 
     'trial_plan' => env('TRIAL_PLAN', 'pro'),
 

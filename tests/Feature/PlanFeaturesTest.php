@@ -49,12 +49,33 @@ test('FEATURES_ENFORCED false libera tudo', function () {
         ->and($user->hasFeature(PlanFeature::CREDIT_CARD_PDF))->toBeTrue();
 });
 
-test('registro com plan=pro inicia trial no plano default', function () {
+test('registro com plan=pro inicia trial quando o default é free', function () {
+    config(['financas.default_plan' => 'free']);
+
     $attrs = app(PlanCatalog::class)->attributesForRegistration('pro');
 
     expect($attrs['plan'])->toBe('free')
         ->and($attrs['trial_ends_at'])->not->toBeNull()
         ->and($attrs['trial_ends_at']->isFuture())->toBeTrue();
+});
+
+test('com DEFAULT_PLAN=pro o registro Pro fica ilimitado sem trial', function () {
+    config(['financas.default_plan' => 'pro']);
+
+    $attrs = app(PlanCatalog::class)->attributesForRegistration('pro');
+
+    expect($attrs['plan'])->toBe('pro')
+        ->and($attrs['trial_ends_at'])->toBeNull();
+});
+
+test('usuário com plan=pro ignora trial expirado e permanece Pro', function () {
+    $user = User::factory()->create([
+        'plan' => 'pro',
+        'trial_ends_at' => now()->subDay(),
+    ]);
+
+    expect($user->effectivePlanKey())->toBe('pro')
+        ->and($user->hasFeature(PlanFeature::INVESTMENTS))->toBeTrue();
 });
 
 test('comando financas:set-plan atualiza o usuário', function () {

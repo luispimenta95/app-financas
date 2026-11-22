@@ -9,7 +9,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('users', function (Blueprint $table) {
-            $table->string('plan')->default('free')->after('avatar');
+            $table->string('plan')->default('pro')->after('avatar');
             $table->timestamp('trial_ends_at')->nullable()->after('plan');
         });
     }

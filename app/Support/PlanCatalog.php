@@ -145,13 +145,23 @@ class PlanCatalog
             return $this->defaultPlanKey();
         }
 
+        $plan = (string) ($user->plan ?: $this->defaultPlanKey());
+
+        // Plano Pro (ou qualquer plano pago) é permanente: trial não limita nem rebaixa.
+        if ($plan === $this->trialPlanKey() && $this->planExists($plan)) {
+            return $plan;
+        }
+
         if ($user->trial_ends_at instanceof Carbon && $user->trial_ends_at->isFuture()) {
             return $this->trialPlanKey();
         }
 
-        $plan = (string) ($user->plan ?: $this->defaultPlanKey());
-
         return $this->planExists($plan) ? $plan : $this->defaultPlanKey();
+    }
+
+    public function isUnlimitedPlan(string $planKey): bool
+    {
+        return $planKey === $this->trialPlanKey();
     }
 
     public function userHasFeature(?User $user, string $feature): bool
@@ -182,11 +192,21 @@ class PlanCatalog
             ? $requestedPlan
             : $this->defaultPlanKey();
 
-        if ($requested === $this->trialPlanKey() && $this->trialDays() > 0) {
-            return [
-                'plan' => $this->defaultPlanKey(),
-                'trial_ends_at' => now()->addDays($this->trialDays()),
-            ];
+        if ($requested === $this->trialPlanKey()) {
+            // Dono com DEFAULT_PLAN=pro: Pro permanente, sem contagem de dias.
+            if ($this->defaultPlanKey() === $this->trialPlanKey()) {
+                return [
+                    'plan' => $this->trialPlanKey(),
+                    'trial_ends_at' => null,
+                ];
+            }
+
+            if ($this->trialDays() > 0) {
+                return [
+                    'plan' => $this->defaultPlanKey(),
+                    'trial_ends_at' => now()->addDays($this->trialDays()),
+                ];
+            }
         }
 
         return [
