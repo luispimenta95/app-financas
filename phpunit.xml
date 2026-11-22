@@ -31,6 +31,9 @@
         <env name="SESSION_DRIVER" value="array"/>
         <env name="TELESCOPE_ENABLED" value="false"/>
         <env name="LANDING_ENABLED" value="false"/>
+        <env name="FEATURES_ENFORCED" value="false"/>
+        <env name="DEFAULT_PLAN" value="free"/>
+        <env name="TRIAL_PLAN" value="pro"/>
         <env name="TRIAL_DAYS" value="14"/>
     </php>
 </phpunit>

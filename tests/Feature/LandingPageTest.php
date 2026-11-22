@@ -75,7 +75,7 @@ test('invoke da landing retorna View com catálogo de planos', function () {
         'financas.trial_days' => 7,
     ]);
 
-    $result = app(LandingController::class)();
+    $result = app()->call(LandingController::class);
 
     expect($result)->toBeInstanceOf(View::class)
         ->and($result->getData()['trialDays'])->toBe(7)

@@ -6,6 +6,7 @@ use App\Enums\InvestmentRateType;
 use App\Enums\InvestmentType;
 use App\Models\Investment;
 use App\Services\Investment\RedeemInvestment;
+use App\Support\PlanFeature;
 use Closure;
 use Filament\Forms;
 use Filament\Forms\Form;
@@ -18,6 +19,7 @@ use Filament\Tables\Columns\Summarizers\Sum;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Query\Builder as QueryBuilder;
 use Leandrocfe\FilamentPtbrFormFields\Money;
 
@@ -34,6 +36,31 @@ class InvestmentResource extends Resource
     protected static ?string $recordTitleAttribute = 'name';
 
     protected static ?int $navigationSort = 3;
+
+    public static function canViewAny(): bool
+    {
+        return financas_user_can(PlanFeature::INVESTMENTS);
+    }
+
+    public static function canCreate(): bool
+    {
+        return static::canViewAny();
+    }
+
+    public static function canEdit(Model $record): bool
+    {
+        return static::canViewAny();
+    }
+
+    public static function canDelete(Model $record): bool
+    {
+        return static::canViewAny();
+    }
+
+    public static function shouldRegisterNavigation(): bool
+    {
+        return static::canViewAny();
+    }
 
     public static function form(Form $form): Form
     {

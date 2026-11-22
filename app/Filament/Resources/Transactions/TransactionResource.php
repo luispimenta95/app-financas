@@ -9,6 +9,7 @@ use App\Filament\Resources\Transactions\TransactionResource\Widgets;
 use App\Forms\Components\NativeFileUpload;
 use App\Models\Transactions\Category;
 use App\Models\Transactions\Transaction;
+use App\Support\PlanFeature;
 use App\Tables\Columns\MoneyColumn;
 use Filament\Forms;
 use Filament\Forms\Form;
@@ -347,7 +348,9 @@ class TransactionResource extends Resource
                     ->color('info')
                     ->iconButton()
                     ->tooltip('Enviar fatura')
-                    ->visible(fn (Transaction $record): bool => $record->isCreditCardBill() && ! $record->hasCreditCardStatement())
+                    ->visible(fn (Transaction $record): bool => financas_user_can(PlanFeature::CREDIT_CARD_PDF)
+                        && $record->isCreditCardBill()
+                        && ! $record->hasCreditCardStatement())
                     ->url(fn (Transaction $record): string => static::getUrl('uploadStatement', ['record' => $record])),
                 Tables\Actions\Action::make('uploadPayslip')
                     ->label('Enviar contracheque')
@@ -355,7 +358,9 @@ class TransactionResource extends Resource
                     ->color('success')
                     ->iconButton()
                     ->tooltip('Enviar contracheque')
-                    ->visible(fn (Transaction $record): bool => $record->isPayslip() && ! $record->hasPayslip())
+                    ->visible(fn (Transaction $record): bool => financas_user_can(PlanFeature::PAYSLIP_PDF)
+                        && $record->isPayslip()
+                        && ! $record->hasPayslip())
                     ->url(fn (Transaction $record): string => static::getUrl('uploadPayslip', ['record' => $record])),
                 Tables\Actions\Action::make('statement')
                     ->label('Gastos')
@@ -380,6 +385,7 @@ class TransactionResource extends Resource
                 ]),
                 Tables\Actions\ExportBulkAction::make()
                     ->label('Exportar')
+                    ->visible(fn (): bool => financas_user_can(PlanFeature::EXPORT_TRANSACTIONS))
                     ->exporter(TransactionExporter::class)
                     ->icon('heroicon-s-document-arrow-up')
                     ->color('primary'),

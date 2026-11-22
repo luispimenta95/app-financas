@@ -60,3 +60,17 @@ if (!function_exists('financas_panel_url')) {
         return url($path === '' ? '/' . $base : '/' . $base . '/' . $path);
     }
 }
+
+if (!function_exists('financas_plans')) {
+    function financas_plans(): \App\Support\PlanCatalog
+    {
+        return app(\App\Support\PlanCatalog::class);
+    }
+}
+
+if (!function_exists('financas_user_can')) {
+    function financas_user_can(string $feature, ?\App\Models\User $user = null): bool
+    {
+        return financas_plans()->userHasFeature($user ?? auth()->user(), $feature);
+    }
+}

@@ -6,6 +6,7 @@ use App\Enums\TransactionType;
 use App\Filament\Pages\Dashboard;
 use App\Models\Transactions\Transaction;
 use App\Services\Transactions\MonthlyBalanceService;
+use App\Support\PlanFeature;
 use Filament\Widgets\StatsOverviewWidget as BaseWidget;
 use Filament\Widgets\StatsOverviewWidget\Stat;
 
@@ -17,13 +18,18 @@ class MonthProjectionWidget extends BaseWidget
 
     protected ?string $description = 'Saldo esperado quando as transações pendentes do mês forem finalizadas, incluindo aportes e resgates.';
 
+    public static function canView(): bool
+    {
+        return financas_user_can(PlanFeature::DASHBOARD_PROJECTION);
+    }
+
     /**
      * Widget de projeção futura: só faz sentido sem filtros,
      * pois filtros limitam o período a datas já ocorridas (até hoje).
      */
     public static function shouldDisplay(?array $filters): bool
     {
-        return ! Dashboard::hasActiveFilters($filters);
+        return static::canView() && ! Dashboard::hasActiveFilters($filters);
     }
 
     protected function getStats(): array

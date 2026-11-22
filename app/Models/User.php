@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Models\Transactions\Account;
 use App\Models\Transactions\Category;
 use App\Observers\UserObserver;
+use App\Support\PlanCatalog;
 use Filament\Models\Contracts\FilamentUser;
 use Filament\Models\Contracts\HasAvatar;
 use Filament\Panel;
@@ -30,6 +31,8 @@ class User extends Authenticatable implements FilamentUser, HasAvatar
         'email',
         'password',
         'avatar',
+        'plan',
+        'trial_ends_at',
     ];
 
     /**
@@ -45,13 +48,14 @@ class User extends Authenticatable implements FilamentUser, HasAvatar
     /**
      * Get the attributes that should be cast.
      *
-     * @return array<string, string>
+     * @return array<string, mixed>
      */
     protected function casts(): array
     {
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'trial_ends_at' => 'datetime',
         ];
     }
 
@@ -83,5 +87,20 @@ class User extends Authenticatable implements FilamentUser, HasAvatar
     public function getFilamentAvatarUrl(): ?string
     {
         return $this->avatar ? asset('storage/' . $this->avatar) : null;
+    }
+
+    public function effectivePlanKey(): string
+    {
+        return app(PlanCatalog::class)->effectivePlanKey($this);
+    }
+
+    public function hasFeature(string $feature): bool
+    {
+        return app(PlanCatalog::class)->userHasFeature($this, $feature);
+    }
+
+    public function onTrial(): bool
+    {
+        return $this->trial_ends_at !== null && $this->trial_ends_at->isFuture();
     }
 }

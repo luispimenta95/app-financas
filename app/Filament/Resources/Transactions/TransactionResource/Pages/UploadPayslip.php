@@ -5,6 +5,7 @@ namespace App\Filament\Resources\Transactions\TransactionResource\Pages;
 use App\Filament\Resources\Transactions\TransactionResource;
 use App\Models\Transactions\Transaction;
 use App\Services\Transactions\PayslipImporter;
+use App\Support\PlanFeature;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\Concerns\InteractsWithRecord;
 use Filament\Resources\Pages\Page;
@@ -27,6 +28,10 @@ class UploadPayslip extends Page
 
     public static function canAccess(array $parameters = []): bool
     {
+        if (! financas_user_can(PlanFeature::PAYSLIP_PDF)) {
+            return false;
+        }
+
         $record = $parameters['record'] ?? null;
 
         return $record instanceof Transaction && $record->isPayslip();
@@ -34,6 +39,8 @@ class UploadPayslip extends Page
 
     public function mount(int|string $record): void
     {
+        abort_unless(financas_user_can(PlanFeature::PAYSLIP_PDF), 403);
+
         $this->record = $this->resolveRecord($record);
 
         abort_unless($this->record->isPayslip(), 403);

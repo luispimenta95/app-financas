@@ -7,6 +7,7 @@ use App\Enums\TransactionType;
 use App\Filament\Widgets\Concerns\InteractsWithDashboardPeriod;
 use App\Models\Investment;
 use App\Models\Transactions\Transaction;
+use App\Support\PlanFeature;
 use Filament\Widgets\StatsOverviewWidget as BaseWidget;
 use Filament\Widgets\StatsOverviewWidget\Stat;
 
@@ -15,6 +16,11 @@ class InvestmentsTotalWidget extends BaseWidget
     use InteractsWithDashboardPeriod;
 
     protected static ?int $sort = 4;
+
+    public static function canView(): bool
+    {
+        return financas_user_can(PlanFeature::INVESTMENTS);
+    }
 
     protected int|string|array $columnSpan = 'full';
 
