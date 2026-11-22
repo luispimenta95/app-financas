@@ -2,10 +2,13 @@
 
 namespace App\Providers;
 
+use App\Livewire\Hooks\SyncTableRecordsPerPage;
+use App\Support\TablePagination;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\DateTimePicker;
 use Filament\Tables\Table;
 use Illuminate\Support\ServiceProvider;
+use Livewire\Livewire;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -33,11 +36,15 @@ class AppServiceProvider extends ServiceProvider
             $component->native(true);
         });
 
-        // A single page option hides the per-page selector in every table.
+        // Preferência do usuário (50/100/200) aplica a todas as tabelas Filament.
         Table::configureUsing(function (Table $table): void {
+            $size = TablePagination::for();
+
             $table
-                ->paginated([250])
-                ->defaultPaginationPageOption(250);
+                ->paginated(TablePagination::OPTIONS)
+                ->defaultPaginationPageOption($size);
         });
+
+        Livewire::componentHook(SyncTableRecordsPerPage::class);
     }
 }

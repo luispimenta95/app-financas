@@ -3,6 +3,7 @@
 namespace App\Filament\Pages\Auth;
 
 use App\Support\PlanCatalog;
+use App\Support\TablePagination;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Pages\Auth\EditProfile as BasePage;
@@ -77,6 +78,19 @@ class EditProfile extends BasePage
                                     ->content($planSummary),
                             ]),
 
+                        Forms\Components\Section::make('Tabelas')
+                            ->description('Define quantos registros aparecem por página em todas as listagens.')
+                            ->icon('heroicon-o-table-cells')
+                            ->aside()
+                            ->schema([
+                                Forms\Components\Select::make('table_records_per_page')
+                                    ->label('Registros por página')
+                                    ->options(TablePagination::selectOptions())
+                                    ->required()
+                                    ->native(false)
+                                    ->helperText('Válido para todas as tabelas do app. Padrão: 50.'),
+                            ]),
+
                         Forms\Components\Section::make('Segurança')
                             ->description('Seus dados de segurança')
                             ->icon('heroicon-o-lock-closed')
@@ -128,6 +142,10 @@ class EditProfile extends BasePage
     {
         // Plano nunca é editável pelo usuário no perfil.
         unset($data['plan'], $data['trial_ends_at']);
+
+        if (array_key_exists('table_records_per_page', $data)) {
+            $data['table_records_per_page'] = TablePagination::normalize($data['table_records_per_page']);
+        }
 
         return $data;
     }

@@ -31,6 +31,7 @@ class UserFactory extends Factory
             'remember_token' => Str::random(10),
             'plan' => 'free',
             'trial_ends_at' => null,
+            'table_records_per_page' => 50,
         ];
     }
 
