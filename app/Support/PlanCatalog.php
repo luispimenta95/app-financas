@@ -2,12 +2,23 @@
 
 namespace App\Support;
 
+use App\Models\Feature;
+use App\Models\Plan;
 use App\Models\User;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Schema;
 
 class PlanCatalog
 {
+    /** @var array<string, array{key: string, label: string, description: string}>|null */
+    private ?array $featuresCache = null;
+
+    /** @var array<string, array<string, mixed>>|null */
+    private ?array $plansCache = null;
+
+    private ?bool $usesDatabase = null;
+
     public function featuresEnforced(): bool
     {
         return (bool) config('financas.features_enforced', true);
@@ -28,14 +39,42 @@ class PlanCatalog
         return (string) config('financas.trial_plan', 'pro');
     }
 
+    public function forgetCache(): void
+    {
+        $this->featuresCache = null;
+        $this->plansCache = null;
+        $this->usesDatabase = null;
+    }
+
     /**
      * @return array<string, array{key: string, label: string, description: string}>
      */
     public function features(): array
     {
+        if ($this->featuresCache !== null) {
+            return $this->featuresCache;
+        }
+
+        if ($this->usesDatabase()) {
+            $normalized = [];
+
+            Feature::query()
+                ->orderBy('sort_order')
+                ->orderBy('id')
+                ->get()
+                ->each(function (Feature $feature) use (&$normalized): void {
+                    $normalized[$feature->key] = [
+                        'key' => $feature->key,
+                        'label' => (string) $feature->label,
+                        'description' => (string) ($feature->description ?? ''),
+                    ];
+                });
+
+            return $this->featuresCache = $normalized;
+        }
+
         /** @var array<string, array{label?: string, description?: string}> $features */
         $features = config('financas.features', []);
-
         $normalized = [];
 
         foreach ($features as $key => $feature) {
@@ -46,7 +85,7 @@ class PlanCatalog
             ];
         }
 
-        return $normalized;
+        return $this->featuresCache = $normalized;
     }
 
     /**
@@ -54,15 +93,56 @@ class PlanCatalog
      */
     public function plans(): array
     {
+        if ($this->plansCache !== null) {
+            return $this->plansCache;
+        }
+
+        if ($this->usesDatabase()) {
+            $normalized = [];
+
+            Plan::query()
+                ->where('is_active', true)
+                ->with('features')
+                ->orderBy('sort_order')
+                ->orderBy('id')
+                ->get()
+                ->each(function (Plan $plan) use (&$normalized): void {
+                    $normalized[$plan->key] = [
+                        'key' => $plan->key,
+                        'name' => $plan->name,
+                        'price_monthly' => $plan->price_monthly,
+                        'price_label' => $plan->price_label,
+                        'period' => $plan->period,
+                        'description' => $plan->description,
+                        'cta' => $plan->cta,
+                        'featured' => $plan->featured,
+                        'feature_keys' => $plan->features->pluck('key')->all(),
+                        'highlights' => $plan->highlights ?? [],
+                    ];
+                });
+
+            return $this->plansCache = $normalized;
+        }
+
         /** @var array<string, array<string, mixed>> $plans */
-        return config('financas.plans', []);
+        return $this->plansCache = config('financas.plans', []);
     }
 
     /**
+     * Inclui planos inativos (útil no admin ao atribuir planos a usuários).
+     *
      * @return array<string, string>
      */
-    public function planOptions(): array
+    public function planOptions(bool $includeInactive = false): array
     {
+        if ($includeInactive && $this->usesDatabase()) {
+            return Plan::query()
+                ->orderBy('sort_order')
+                ->orderBy('id')
+                ->pluck('name', 'key')
+                ->all();
+        }
+
         return collect($this->plans())
             ->mapWithKeys(fn (array $plan, string $key): array => [
                 $key => (string) ($plan['name'] ?? $key),
@@ -78,6 +158,27 @@ class PlanCatalog
         $plan = $this->plans()[$key] ?? null;
 
         if (! is_array($plan)) {
+            if ($this->usesDatabase()) {
+                $record = Plan::query()->where('key', $key)->with('features')->first();
+
+                if ($record === null) {
+                    return null;
+                }
+
+                return [
+                    'key' => $record->key,
+                    'name' => $record->name,
+                    'price_monthly' => $record->price_monthly,
+                    'price_label' => $record->price_label,
+                    'period' => $record->period,
+                    'description' => $record->description,
+                    'cta' => $record->cta,
+                    'featured' => $record->featured,
+                    'feature_keys' => $record->features->pluck('key')->all(),
+                    'highlights' => $record->highlights ?? [],
+                ];
+            }
+
             return null;
         }
 
@@ -213,5 +314,19 @@ class PlanCatalog
             'plan' => $requested,
             'trial_ends_at' => null,
         ];
+    }
+
+    private function usesDatabase(): bool
+    {
+        if ($this->usesDatabase !== null) {
+            return $this->usesDatabase;
+        }
+
+        try {
+            return $this->usesDatabase = Schema::hasTable('plans')
+                && Plan::query()->exists();
+        } catch (\Throwable) {
+            return $this->usesDatabase = false;
+        }
     }
 }

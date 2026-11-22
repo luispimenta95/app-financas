@@ -7,10 +7,12 @@ use App\Filament\Pages\Auth\EditProfile;
 use App\Filament\Pages\Auth\Register;
 use App\Filament\Pages\Dashboard;
 use App\Filament\Widgets;
+use App\Support\AppAdmin;
 use Filament\Enums\ThemeMode;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\DisableBladeIconComponents;
 use Filament\Http\Middleware\DispatchServingFilamentEvent;
+use Filament\Navigation\MenuItem;
 use Filament\Panel;
 use Filament\PanelProvider;
 use Filament\Support\Colors\Color;
@@ -42,7 +44,17 @@ class DashPanelProvider extends PanelProvider
             ->sidebarCollapsibleOnDesktop()
             ->maxContentWidth('full')
             ->databaseNotifications()
+            ->userMenuItems([
+                'admin' => MenuItem::make()
+                    ->label('Administração')
+                    ->url('/admin')
+                    ->icon('heroicon-o-cog-6-tooth')
+                    ->visible(fn (): bool => AppAdmin::check(auth()->user())),
+            ])
             ->brandName((string) config('financas.brand', 'Finanças'))
+            ->brandLogo(asset('images/logo.svg'))
+            ->brandLogoHeight('2rem')
+            ->favicon(asset('favicon.ico'))
             ->font('DM Sans')
             ->colors([
                 'danger' => Color::Rose,
@@ -56,7 +68,10 @@ class DashPanelProvider extends PanelProvider
             ->viteTheme('resources/css/filament/dash/theme.css')
             ->renderHook(
                 PanelsRenderHook::STYLES_AFTER,
-                fn (): string => '<link rel="stylesheet" href="'.e(asset('css/statement-upload.css')).'">',
+                fn (): string => '<link rel="stylesheet" href="'.e(asset('css/statement-upload.css')).'">'
+                    .'<link rel="icon" type="image/svg+xml" href="'.e(asset('images/logo.svg')).'">'
+                    .'<link rel="icon" type="image/png" sizes="32x32" href="'.e(asset('favicon-32x32.png')).'">'
+                    .'<link rel="apple-touch-icon" href="'.e(asset('apple-touch-icon.png')).'">',
             )
             ->defaultAvatarProvider(BoringAvatarsProvider::class)
             ->discoverResources(in: app_path('Filament/Resources'), for: 'App\\Filament\\Resources')

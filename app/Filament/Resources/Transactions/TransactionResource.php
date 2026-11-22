@@ -197,6 +197,32 @@ class TransactionResource extends Resource
                             ]),
                     ]),
 
+                Forms\Components\Section::make('Boleto')
+                    ->description('Dados lidos do PDF. Use “Enviar boleto PDF” no topo para cadastrar ou atualizar.')
+                    ->visible(fn (?Transaction $record): bool => $record?->hasBoleto() ?? false)
+                    ->schema([
+                        Forms\Components\Placeholder::make('boleto_beneficiary')
+                            ->label('Beneficiário')
+                            ->content(fn (?Transaction $record): string => $record?->boleto?->beneficiary ?: '—'),
+                        Forms\Components\Placeholder::make('boleto_amount')
+                            ->label('Valor lido')
+                            ->content(fn (?Transaction $record): string => 'R$ '.number_format(($record?->boleto?->amount ?? 0) / 100, 2, ',', '.')),
+                        Forms\Components\Placeholder::make('boleto_due')
+                            ->label('Vencimento lido')
+                            ->content(fn (?Transaction $record): string => $record?->boleto?->due_date?->format('d/m/Y') ?: '—'),
+                        Forms\Components\Placeholder::make('boleto_line')
+                            ->label('Linha digitável')
+                            ->content(fn (?Transaction $record): string => $record?->boleto?->formattedDigitableLine() ?: '—')
+                            ->columnSpanFull(),
+                        Forms\Components\Placeholder::make('boleto_document')
+                            ->label('Documento')
+                            ->content(fn (?Transaction $record): string => $record?->boleto?->document_number ?: '—'),
+                        Forms\Components\Placeholder::make('boleto_our_number')
+                            ->label('Nosso número')
+                            ->content(fn (?Transaction $record): string => $record?->boleto?->our_number ?: '—'),
+                    ])
+                    ->columns(2),
+
                 Forms\Components\Section::make('Anexo')
                     ->schema([
                         NativeFileUpload::make('attachment')
@@ -222,7 +248,7 @@ class TransactionResource extends Resource
             ->defaultGroup('due_date')
             ->striped()
             ->modifyQueryUsing(fn (Builder $query): Builder => $query
-                ->with(['category', 'account', 'creditCardPurchases', 'creditCardStatement', 'payslip.items'])
+                ->with(['category', 'account', 'creditCardPurchases', 'creditCardStatement', 'payslip.items', 'boleto'])
                 ->withCount('creditCardPurchases')
                 ->orderByRaw(Transaction::dueDateExpression() . ' ASC')
                 ->orderByRaw("case when transaction_type = 'income' then 0 else 1 end")
@@ -362,6 +388,15 @@ class TransactionResource extends Resource
                         && $record->isPayslip()
                         && ! $record->hasPayslip())
                     ->url(fn (Transaction $record): string => static::getUrl('uploadPayslip', ['record' => $record])),
+                Tables\Actions\Action::make('uploadBoleto')
+                    ->label(fn (Transaction $record): string => $record->hasBoleto() ? 'Atualizar boleto' : 'Enviar boleto')
+                    ->icon('heroicon-m-qr-code')
+                    ->color('warning')
+                    ->iconButton()
+                    ->tooltip(fn (Transaction $record): string => $record->hasBoleto() ? 'Atualizar boleto' : 'Enviar boleto')
+                    ->visible(fn (Transaction $record): bool => financas_user_can(PlanFeature::BOLETO_PDF)
+                        && $record->isExpense())
+                    ->url(fn (Transaction $record): string => static::getUrl('uploadBoleto', ['record' => $record])),
                 Tables\Actions\Action::make('statement')
                     ->label('Gastos')
                     ->icon('heroicon-m-receipt-percent')
@@ -391,6 +426,12 @@ class TransactionResource extends Resource
                     ->color('primary'),
             ])
             ->headerActions([
+                Tables\Actions\Action::make('uploadBoleto')
+                    ->label('Enviar boleto')
+                    ->icon('heroicon-m-qr-code')
+                    ->color('warning')
+                    ->visible(fn (): bool => financas_user_can(PlanFeature::BOLETO_PDF))
+                    ->url(fn (): string => static::getUrl('uploadBoleto')),
                 Tables\Actions\CreateAction::make(),
             ]);
     }
@@ -573,6 +614,7 @@ class TransactionResource extends Resource
             'create' => Pages\CreateTransaction::route('/create'),
             'uploadStatement' => Pages\UploadCreditCardStatement::route('/{record}/enviar-fatura'),
             'uploadPayslip' => Pages\UploadPayslip::route('/{record}/enviar-contracheque'),
+            'uploadBoleto' => Pages\UploadBoleto::route('/enviar-boleto/{record?}'),
             'view' => Pages\ViewTransaction::route('/{record}'),
             'statement' => Pages\ListCreditCardPurchases::route('/{record}/fatura'),
             'edit' => Pages\EditTransaction::route('/{record}/edit'),

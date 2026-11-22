@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Models\Transactions\Account;
 use App\Models\Transactions\Category;
 use App\Observers\UserObserver;
+use App\Support\AppAdmin;
 use App\Support\PlanCatalog;
 use Filament\Models\Contracts\FilamentUser;
 use Filament\Models\Contracts\HasAvatar;
@@ -81,7 +82,16 @@ class User extends Authenticatable implements FilamentUser, HasAvatar
 
     public function canAccessPanel(Panel $panel): bool
     {
+        if ($panel->getId() === 'admin') {
+            return $this->isAppAdmin();
+        }
+
         return true;
+    }
+
+    public function isAppAdmin(): bool
+    {
+        return AppAdmin::check($this);
     }
 
     public function getFilamentAvatarUrl(): ?string

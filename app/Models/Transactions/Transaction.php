@@ -84,6 +84,26 @@ class Transaction extends Model
         return $this->hasOne(Payslip::class);
     }
 
+    public function boleto(): HasOne
+    {
+        return $this->hasOne(Boleto::class);
+    }
+
+    public function hasBoleto(): bool
+    {
+        if (array_key_exists('boleto', $this->relations)) {
+            return $this->boleto !== null;
+        }
+
+        return $this->boleto()->exists();
+    }
+
+    public function isExpense(): bool
+    {
+        return $this->transaction_type === TransactionType::Expense
+            || $this->transaction_type === TransactionType::Expense->value;
+    }
+
     public function isPayslip(): bool
     {
         $this->loadMissing('category');

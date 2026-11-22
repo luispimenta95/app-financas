@@ -21,6 +21,18 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Administrador
+    |--------------------------------------------------------------------------
+    |
+    | Único e-mail com acesso ao painel /admin (planos, features e planos
+    | dos usuários). O app normal permanece em / (ou /app com landing).
+    |
+    */
+
+    'admin_email' => env('ADMIN_EMAIL', ''),
+
+    /*
+    |--------------------------------------------------------------------------
     | Planos e funcionalidades
     |--------------------------------------------------------------------------
     |
@@ -28,8 +40,8 @@ return [
     | DEFAULT_PLAN é atribuído a novos usuários sem trial.
     | TRIAL_PLAN + TRIAL_DAYS controlam o acesso temporário do Pro.
     |
-    | Edite "features" e "plans.*.feature_keys" para montar o catálogo.
-    | No perfil do usuário (Filament) você escolhe o plano e o fim do trial.
+    | O catálogo ativo fica no banco (painel /admin). Os arrays abaixo
+    | servem de fallback quando as tabelas ainda não existem (ex.: testes).
     |
     */
 
@@ -62,6 +74,10 @@ return [
         PlanFeature::PAYSLIP_PDF => [
             'label' => 'Importação de contracheque (PDF)',
             'description' => 'Ler holerite e preencher o salário.',
+        ],
+        PlanFeature::BOLETO_PDF => [
+            'label' => 'Importação de boleto (PDF)',
+            'description' => 'Ler boleto e cadastrar/atualizar o lançamento automaticamente.',
         ],
         PlanFeature::INVESTMENTS => [
             'label' => 'Carteira de investimentos',
@@ -109,12 +125,13 @@ return [
                 PlanFeature::DASHBOARD_PROJECTION,
                 PlanFeature::CREDIT_CARD_PDF,
                 PlanFeature::PAYSLIP_PDF,
+                PlanFeature::BOLETO_PDF,
                 PlanFeature::INVESTMENTS,
                 PlanFeature::INVESTMENT_MILESTONES,
             ],
             'highlights' => [
                 'Tudo do plano Gratuito',
-                'Importação de fatura e contracheque (PDF)',
+                'Importação de fatura, contracheque e boleto (PDF)',
                 'Carteira de investimentos e marcos',
                 'Prioridade em novos bancos e relatórios',
                 'Suporte prioritário',

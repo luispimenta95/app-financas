@@ -5,6 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="description" content="Finanças — organize receitas, despesas e investimentos com projeção do mês e leitura de PDF.">
     <title>{{ $brand }} — controle financeiro com clareza</title>
+    <link rel="icon" href="{{ asset('favicon.ico') }}" sizes="any">
+    <link rel="icon" type="image/svg+xml" href="{{ asset('images/logo.svg') }}">
+    <link rel="icon" type="image/png" sizes="32x32" href="{{ asset('favicon-32x32.png') }}">
+    <link rel="apple-touch-icon" href="{{ asset('apple-touch-icon.png') }}">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Manrope:wght@400;500;650;700&display=swap" rel="stylesheet">
@@ -13,7 +17,10 @@
 <body class="landing">
     <div class="landing-shell">
         <header class="landing-nav">
-            <a class="brand" href="{{ url('/') }}">{{ $brand }}</a>
+            <a class="brand" href="{{ url('/') }}">
+                <img src="{{ asset('images/logo.svg') }}" alt="" width="28" height="28">
+                {{ $brand }}
+            </a>
             <div class="nav-actions">
                 <a class="btn btn-ghost" href="{{ $loginUrl }}">Entrar</a>
                 <a class="btn btn-primary" href="{{ $registerUrl }}">Começar grátis</a>
