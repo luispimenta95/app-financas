@@ -12,8 +12,9 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware) {
         $middleware->trustProxies(at: '*');
-        //
+        $middleware->redirectGuestsTo(fn () => financas_panel_url('login'));
     })
+
     ->withExceptions(function (Exceptions $exceptions) {
         //
     })->create();

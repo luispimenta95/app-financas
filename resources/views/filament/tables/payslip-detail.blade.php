@@ -26,13 +26,15 @@
         </span>
 
         <span class="flex flex-wrap gap-3">
-            <a
-                href="{{ asset('storage/'.$payslip->file_path) }}"
-                target="_blank"
-                class="font-medium text-primary-600 hover:underline dark:text-primary-400"
-            >
-                {{ $payslip->original_name ?? 'Abrir PDF' }}
-            </a>
+            @if ($attachmentUrl = \App\Support\PrivateAttachments::url($payslip->file_path))
+                <a
+                    href="{{ $attachmentUrl }}"
+                    target="_blank"
+                    class="font-medium text-primary-600 hover:underline dark:text-primary-400"
+                >
+                    {{ $payslip->original_name ?? 'Abrir PDF' }}
+                </a>
+            @endif
             <a
                 href="{{ \App\Filament\Resources\Transactions\TransactionResource::getUrl('uploadPayslip', ['record' => $transaction]) }}"
                 class="font-medium text-gray-600 hover:underline dark:text-gray-300"

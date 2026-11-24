@@ -23,10 +23,12 @@ class UploadCreditCardStatementAction
                 ->helperText('Se o banco proteger o PDF, informe a senha.'),
             NativeFileUpload::make('pdf')
                 ->label('PDF da fatura')
-                ->disk('public')
+                ->disk(\App\Support\PrivateAttachments::disk())
                 ->directory('transactions')
+                ->visibility('private')
                 ->acceptedFileTypes(['application/pdf'])
                 ->required(),
+
         ];
     }
 

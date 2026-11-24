@@ -14,15 +14,16 @@
             · {{ $purchases->count() }} lançamentos
         </span>
 
-        @if (filled($pdfPath))
+        @if (filled($pdfPath) && ($attachmentUrl = \App\Support\PrivateAttachments::url($pdfPath)))
             <a
-                href="{{ asset('storage/'.$pdfPath) }}"
+                href="{{ $attachmentUrl }}"
                 target="_blank"
                 class="font-medium text-primary-600 hover:underline dark:text-primary-400"
             >
                 {{ $statement?->original_name ?? 'Abrir PDF' }}
             </a>
         @endif
+
     </div>
 
     <div class="overflow-x-auto rounded-lg bg-white ring-1 ring-gray-950/5 dark:bg-gray-900 dark:ring-white/10" style="max-width: 100%; overflow-x: auto;">

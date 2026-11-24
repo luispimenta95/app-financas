@@ -68,6 +68,16 @@ test('com DEFAULT_PLAN=pro o registro Pro fica ilimitado sem trial', function ()
         ->and($attrs['trial_ends_at'])->toBeNull();
 });
 
+test('registro ignora plano arbitrário pedido pelo cliente', function () {
+    config(['financas.default_plan' => 'free', 'financas.trial_plan' => 'pro']);
+
+    $attrs = app(PlanCatalog::class)->attributesForRegistration('enterprise');
+
+    expect($attrs['plan'])->toBe('free')
+        ->and($attrs['trial_ends_at'])->toBeNull();
+});
+
+
 test('usuário com plan=pro ignora trial expirado e permanece Pro', function () {
     $user = User::factory()->create([
         'plan' => 'pro',

@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\LandingController;
+use App\Http\Controllers\PrivateAttachmentController;
 use Illuminate\Foundation\Http\Middleware\VerifyCsrfToken;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Route;
@@ -18,6 +19,18 @@ use Illuminate\Support\Facades\Route;
 if (financas_landing_enabled()) {
     Route::get('/', LandingController::class)->name('landing');
 }
+
+/*
+|--------------------------------------------------------------------------
+| Anexos privados (boletos, faturas, contracheques)
+|--------------------------------------------------------------------------
+*/
+Route::middleware('auth')->group(function () {
+    Route::get('/anexos/{path}', PrivateAttachmentController::class)
+        ->where('path', '.*')
+        ->name('attachments.show');
+});
+
 
 /*
 |--------------------------------------------------------------------------

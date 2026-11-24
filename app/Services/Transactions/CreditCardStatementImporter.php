@@ -7,7 +7,6 @@ use App\Models\Transactions\CreditCardPurchase;
 use App\Models\Transactions\CreditCardStatement;
 use App\Models\Transactions\Transaction;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Storage;
 use Throwable;
 
 class CreditCardStatementImporter
@@ -124,12 +123,6 @@ class CreditCardStatementImporter
             return $relative;
         }
 
-        foreach (['public', 'local'] as $disk) {
-            if (Storage::disk($disk)->exists($relative)) {
-                return Storage::disk($disk)->path($relative);
-            }
-        }
-
-        return null;
+        return \App\Support\PrivateAttachments::absolutePath($relative);
     }
 }

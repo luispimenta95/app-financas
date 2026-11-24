@@ -54,10 +54,11 @@ class UploadCreditCardStatement extends Page
     public function submit(): void
     {
         $this->validate([
-            'pdf' => ['required'],
+            'pdf' => ['required', 'file', 'mimes:pdf', 'max:10240'],
             'statement_password' => ['nullable', 'string', 'max:255'],
         ], [
             'pdf.required' => 'Selecione o PDF da fatura.',
+            'pdf.mimes' => 'O arquivo precisa ser um PDF.',
         ]);
 
         $file = $this->pdf instanceof TemporaryUploadedFile
@@ -70,7 +71,8 @@ class UploadCreditCardStatement extends Page
             return;
         }
 
-        $path = $file->store('transactions', 'public');
+        $path = $file->store('transactions', \App\Support\PrivateAttachments::disk());
+
 
         $result = UploadCreditCardStatementAction::handle($this->record, [
             'pdf' => $path,

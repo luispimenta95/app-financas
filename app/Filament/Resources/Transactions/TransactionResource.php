@@ -227,9 +227,11 @@ class TransactionResource extends Resource
                     ->schema([
                         NativeFileUpload::make('attachment')
                             ->label('Anexo')
-                            ->disk('public')
+                            ->disk(\App\Support\PrivateAttachments::disk())
                             ->directory('transactions')
+                            ->visibility('private')
                             ->acceptedFileTypes(['application/pdf', 'image/jpeg', 'image/png']),
+
                     ]),
             ]);
     }

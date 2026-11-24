@@ -80,7 +80,7 @@ test('parser extrai linha digitável, valor e vencimento', function () {
 });
 
 test('importer cria lançamento e atualiza quando a linha digitável se repete', function () {
-    Storage::fake('public');
+    Storage::fake('local');
 
     $user = User::factory()->create();
     $account = $user->accounts()->first();
@@ -89,7 +89,7 @@ test('importer cria lançamento e atualiza quando a linha digitável se repete',
     $digitable = '2379338128600000000300000000400110000000015075';
     $text = "Beneficiário: Conta de Luz\n{$digitable}\nValor do Documento: R$ 150,75\n";
 
-    Storage::disk('public')->put('boletos/teste.pdf', '%PDF-1.4 fake');
+    Storage::disk('local')->put('boletos/teste.pdf', '%PDF-1.4 fake');
 
     $parser = Mockery::mock(BoletoParser::class);
     $parser->shouldReceive('parseText')->andReturn([

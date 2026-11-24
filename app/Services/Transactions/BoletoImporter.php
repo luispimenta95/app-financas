@@ -9,9 +9,10 @@ use App\Models\Transactions\Boleto;
 use App\Models\Transactions\Category;
 use App\Models\Transactions\Transaction;
 use App\Models\User;
+use App\Support\PrivateAttachments;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Storage;
 use Throwable;
+
 
 class BoletoImporter
 {
@@ -48,9 +49,7 @@ class BoletoImporter
             'message' => $message,
         ];
 
-        $path = Storage::disk('public')->exists($relativePath)
-            ? Storage::disk('public')->path($relativePath)
-            : null;
+        $path = PrivateAttachments::absolutePath($relativePath);
 
         if ($path === null) {
             return $failed('Arquivo do boleto não encontrado.');

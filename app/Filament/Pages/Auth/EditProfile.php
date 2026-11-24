@@ -2,12 +2,16 @@
 
 namespace App\Filament\Pages\Auth;
 
+use App\Support\AppAdmin;
 use App\Support\PlanCatalog;
 use App\Support\TablePagination;
 use Filament\Forms;
+use Filament\Forms\Components\Component;
+use Filament\Forms\Components\TextInput;
 use Filament\Forms\Form;
 use Filament\Pages\Auth\EditProfile as BasePage;
 use Filament\Support\Enums\Alignment;
+use Illuminate\Validation\Rule;
 
 class EditProfile extends BasePage
 {
@@ -148,5 +152,29 @@ class EditProfile extends BasePage
         }
 
         return $data;
+    }
+
+    protected function getEmailFormComponent(): Component
+    {
+        $user = $this->getUser();
+        $reserved = AppAdmin::email();
+        $isCurrentAdmin = AppAdmin::check($user);
+
+        $component = TextInput::make('email')
+            ->label(__('filament-panels::pages/auth/edit-profile.form.email.label'))
+            ->email()
+            ->required()
+            ->maxLength(255)
+            ->unique(ignoreRecord: true);
+
+        if ($reserved !== '' && ! $isCurrentAdmin) {
+            $component
+                ->rule(Rule::notIn([$reserved]))
+                ->validationMessages([
+                    'not_in' => 'Este e-mail está reservado e não pode ser usado.',
+                ]);
+        }
+
+        return $component;
     }
 }
