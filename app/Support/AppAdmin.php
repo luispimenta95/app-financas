@@ -25,4 +25,19 @@ final class AppAdmin
 
         return strtolower((string) $user->email) === $adminEmail;
     }
+
+    /**
+     * E-mail reservado ao admin: não pode ser usado no cadastro nem
+     * reivindicado por outro usuário no perfil.
+     */
+    public static function isReservedEmail(?string $email): bool
+    {
+        $adminEmail = self::email();
+
+        if ($adminEmail === '' || $email === null || trim($email) === '') {
+            return false;
+        }
+
+        return strtolower(trim($email)) === $adminEmail;
+    }
 }

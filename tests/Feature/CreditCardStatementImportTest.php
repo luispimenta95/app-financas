@@ -69,8 +69,9 @@ test('nao importa fatura de outra categoria', function () {
 });
 
 test('salva os gastos da fatura e abre a listagem', function () {
-    Storage::fake('public');
-    Storage::disk('public')->put('transactions/fatura.pdf', 'fake-pdf');
+    Storage::fake('local');
+    Storage::disk('local')->put('transactions/fatura.pdf', '%PDF-1.4 fake');
+
 
     $this->mock(CreditCardStatementTextExtractor::class)
         ->shouldReceive('extract')
@@ -144,7 +145,7 @@ test('expande os gastos da fatura abaixo do cartao', function () {
 });
 
 test('envia o pdf da fatura pela tela de upload', function () {
-    Storage::fake('public');
+    Storage::fake('local');
 
     $this->mock(CreditCardStatementTextExtractor::class)
         ->shouldReceive('extract')
@@ -152,7 +153,8 @@ test('envia o pdf da fatura pela tela de upload', function () {
         ->andReturn("17/08 SUPERMERCADO BH 189,90\n");
 
     $card = createCardTransaction(['attachment' => null]);
-    $pdf = UploadedFile::fake()->create('Fatura_Itau_20261030-193001.pdf', 120, 'application/pdf');
+    $pdf = UploadedFile::fake()->createWithContent('Fatura_Itau_20261030-193001.pdf', '%PDF-1.4 fake');
+
 
     Livewire::test(UploadCreditCardStatement::class, ['record' => $card->getKey()])
         ->set('pdf', $pdf)
@@ -176,7 +178,7 @@ test('envia o pdf da fatura pela tela de upload', function () {
 });
 
 test('usa o total desta fatura do pdf como valor da transação', function () {
-    Storage::fake('public');
+    Storage::fake('local');
 
     $this->mock(CreditCardStatementTextExtractor::class)
         ->shouldReceive('extract')
@@ -188,10 +190,12 @@ test('usa o total desta fatura do pdf como valor da transação', function () {
 
     $card = createCardTransaction(['attachment' => null]);
 
+
     Livewire::test(UploadCreditCardStatement::class, ['record' => $card->getKey()])
-        ->set('pdf', UploadedFile::fake()->create('fatura.pdf', 120, 'application/pdf'))
+        ->set('pdf', UploadedFile::fake()->createWithContent('fatura.pdf', '%PDF-1.4 fake'))
         ->call('submit')
         ->assertHasNoErrors();
+
 
     expect($card->fresh()->amount)->toBe(400139)
         ->and($card->fresh()->creditCardStatement->bill_amount)->toBe(400139)

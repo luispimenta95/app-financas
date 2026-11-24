@@ -56,7 +56,7 @@ TXT;
 }
 
 test('envia contracheque, salva itens e usa o líquido como valor da transação', function () {
-    Storage::fake('public');
+    Storage::fake('local');
 
     $this->mock(CreditCardStatementTextExtractor::class)
         ->shouldReceive('extract')
@@ -66,7 +66,7 @@ test('envia contracheque, salva itens e usa o líquido como valor da transação
     $salary = createSalaryTransaction();
 
     Livewire::test(UploadPayslip::class, ['record' => $salary->getKey()])
-        ->set('pdf', UploadedFile::fake()->create('51594_20261030.pdf', 120, 'application/pdf'))
+        ->set('pdf', UploadedFile::fake()->createWithContent('51594_20261030.pdf', '%PDF-1.4 fake'))
         ->call('submit')
         ->assertHasNoErrors()
         ->assertRedirect(TransactionResource::getUrl('index'));
@@ -78,12 +78,12 @@ test('envia contracheque, salva itens e usa o líquido como valor da transação
         ->and($payslip->original_name)->toBe('51594_20261030.pdf')
         ->and($payslip->net_amount)->toBe(725306)
         ->and($payslip->items)->toHaveCount(2)
-        ->and(Storage::disk('public')->exists($payslip->file_path))->toBeTrue()
+        ->and(Storage::disk('local')->exists($payslip->file_path))->toBeTrue()
         ->and($salary->fresh()->amount)->toBe(725306);
 });
 
 test('substitui o valor já lançado pelo líquido do pdf', function () {
-    Storage::fake('public');
+    Storage::fake('local');
 
     $this->mock(CreditCardStatementTextExtractor::class)
         ->shouldReceive('extract')
@@ -92,7 +92,7 @@ test('substitui o valor já lançado pelo líquido do pdf', function () {
     $salary = createSalaryTransaction(['amount' => 700000]);
 
     Livewire::test(UploadPayslip::class, ['record' => $salary->getKey()])
-        ->set('pdf', UploadedFile::fake()->create('contracheque.pdf', 120, 'application/pdf'))
+        ->set('pdf', UploadedFile::fake()->createWithContent('contracheque.pdf', '%PDF-1.4 fake'))
         ->call('submit');
 
     expect($salary->fresh()->amount)->toBe(725306)
@@ -101,7 +101,7 @@ test('substitui o valor já lançado pelo líquido do pdf', function () {
 
 test('lista mostra enviar contracheque e abre o detalhamento ao clicar na linha', function () {
     Carbon::setTestNow('2026-10-30 12:00:00');
-    Storage::fake('public');
+    Storage::fake('local');
 
     $this->mock(CreditCardStatementTextExtractor::class)
         ->shouldReceive('extract')
@@ -111,8 +111,9 @@ test('lista mostra enviar contracheque e abre o detalhamento ao clicar na linha'
     $salary = createSalaryTransaction();
 
     Livewire::test(UploadPayslip::class, ['record' => $salary->getKey()])
-        ->set('pdf', UploadedFile::fake()->create('contracheque.pdf', 120, 'application/pdf'))
+        ->set('pdf', UploadedFile::fake()->createWithContent('contracheque.pdf', '%PDF-1.4 fake'))
         ->call('submit');
+
 
     session()->forget('expand_credit_card_statement');
 

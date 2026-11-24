@@ -19,6 +19,13 @@ test('apenas o admin acessa o painel admin', function () {
         ->and($user->canAccessPanel(Filament::getPanel('dash')))->toBeTrue();
 });
 
+test('e-mail do admin é reservado e não pode ser reivindicado', function () {
+    expect(AppAdmin::isReservedEmail('admin@example.com'))->toBeTrue()
+        ->and(AppAdmin::isReservedEmail('ADMIN@example.com'))->toBeTrue()
+        ->and(AppAdmin::isReservedEmail('user@example.com'))->toBeFalse();
+});
+
+
 test('catálogo no banco sobrescreve o config quando existe', function () {
     $feature = \App\Models\Feature::query()->create([
         'key' => 'custom_feature',

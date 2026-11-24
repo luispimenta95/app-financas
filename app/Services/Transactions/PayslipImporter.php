@@ -6,9 +6,10 @@ use App\Exceptions\EncryptedCreditCardStatementException;
 use App\Models\Transactions\Payslip;
 use App\Models\Transactions\PayslipItem;
 use App\Models\Transactions\Transaction;
+use App\Support\PrivateAttachments;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Storage;
 use Throwable;
+
 
 class PayslipImporter
 {
@@ -28,9 +29,7 @@ class PayslipImporter
             return $failed('Esta transação não é da categoria Salário.');
         }
 
-        $path = Storage::disk('public')->exists($relativePath)
-            ? Storage::disk('public')->path($relativePath)
-            : null;
+        $path = PrivateAttachments::absolutePath($relativePath);
 
         if ($path === null) {
             return $failed('Arquivo do contracheque não encontrado.');

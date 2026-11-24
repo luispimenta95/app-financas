@@ -94,10 +94,11 @@ class UploadBoleto extends Page implements HasForms
         $formState = $this->form->getState();
 
         $this->validate([
-            'pdf' => ['required'],
+            'pdf' => ['required', 'file', 'mimes:pdf', 'max:10240'],
             'statement_password' => ['nullable', 'string', 'max:255'],
         ], [
             'pdf.required' => 'Selecione o PDF do boleto.',
+            'pdf.mimes' => 'O arquivo precisa ser um PDF.',
         ]);
 
         if (! $this->pdf instanceof TemporaryUploadedFile) {
@@ -121,7 +122,8 @@ class UploadBoleto extends Page implements HasForms
             return;
         }
 
-        $path = $this->pdf->store('boletos', 'public');
+        $path = $this->pdf->store('boletos', \App\Support\PrivateAttachments::disk());
+
 
         $transaction = filled($this->transaction_id)
             ? Transaction::query()->whereKey($this->transaction_id)->first()

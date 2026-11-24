@@ -283,35 +283,42 @@ class PlanCatalog
     }
 
     /**
-     * Atributos iniciais no registro (landing ?plan=pro inicia trial).
+     * Atributos iniciais no registro.
+     *
+     * O cliente só pode pedir o CTA de trial (ex.: ?plan=pro). Qualquer outro
+     * valor é ignorado — planos permanentes vêm só do DEFAULT_PLAN / admin.
      *
      * @return array{plan: string, trial_ends_at: Carbon|null}
      */
     public function attributesForRegistration(?string $requestedPlan): array
     {
-        $requested = $requestedPlan && $this->planExists($requestedPlan)
-            ? $requestedPlan
-            : $this->defaultPlanKey();
+        $default = $this->defaultPlanKey();
+        $trial = $this->trialPlanKey();
 
-        if ($requested === $this->trialPlanKey()) {
+        $wantsTrial = is_string($requestedPlan)
+            && $requestedPlan !== ''
+            && $this->planExists($requestedPlan)
+            && $requestedPlan === $trial;
+
+        if ($wantsTrial) {
             // Dono com DEFAULT_PLAN=pro: Pro permanente, sem contagem de dias.
-            if ($this->defaultPlanKey() === $this->trialPlanKey()) {
+            if ($default === $trial) {
                 return [
-                    'plan' => $this->trialPlanKey(),
+                    'plan' => $trial,
                     'trial_ends_at' => null,
                 ];
             }
 
             if ($this->trialDays() > 0) {
                 return [
-                    'plan' => $this->defaultPlanKey(),
+                    'plan' => $default,
                     'trial_ends_at' => now()->addDays($this->trialDays()),
                 ];
             }
         }
 
         return [
-            'plan' => $requested,
+            'plan' => $default,
             'trial_ends_at' => null,
         ];
     }

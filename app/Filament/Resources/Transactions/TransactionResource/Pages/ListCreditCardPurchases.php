@@ -118,6 +118,7 @@ class ListCreditCardPurchases extends ManageRelatedRecords
             return null;
         }
 
-        return asset('storage/'.$attachment);
+        return \App\Support\PrivateAttachments::url($attachment);
+
     }
 }

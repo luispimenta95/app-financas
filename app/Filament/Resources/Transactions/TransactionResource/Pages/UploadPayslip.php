@@ -49,10 +49,11 @@ class UploadPayslip extends Page
     public function submit(): void
     {
         $this->validate([
-            'pdf' => ['required'],
+            'pdf' => ['required', 'file', 'mimes:pdf', 'max:10240'],
             'statement_password' => ['nullable', 'string', 'max:255'],
         ], [
             'pdf.required' => 'Selecione o PDF do contracheque.',
+            'pdf.mimes' => 'O arquivo precisa ser um PDF.',
         ]);
 
         if (!$this->pdf instanceof TemporaryUploadedFile) {
@@ -61,7 +62,8 @@ class UploadPayslip extends Page
             return;
         }
 
-        $path = $this->pdf->store('payslips', 'public');
+        $path = $this->pdf->store('payslips', \App\Support\PrivateAttachments::disk());
+
 
         $result = app(PayslipImporter::class)->import(
             $this->record,
